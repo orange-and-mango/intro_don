@@ -2,25 +2,31 @@ from flask import Flask, render_template
 
 app = Flask(__name__)
 
-@app.route('/')
+
+@app.route("/")
 def top():
-    return render_template('top.html')
+    return render_template("top.html")
 
-@app.route('/quiz')
+
+@app.route("/quiz")
 def quiz():
-    return render_template('quiz.html')
+    return render_template("quiz.html")
 
-@app.route('/result')
+
+@app.route("/result")
 def result():
-    return render_template('result.html')
+    return render_template("result.html")
 
-@app.route('/playlist')
+
+@app.route("/playlist")
 def playlist():
-    return render_template('playlist.html')
+    return render_template("playlist.html")
 
-@app.route('/settings')
+
+@app.route("/settings")
 def settings():
-    return render_template('settings.html')
+    return render_template("settings.html")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     app.run(debug=True)

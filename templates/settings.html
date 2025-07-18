@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>設定 - フリーBGMイントロドン</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>設定画面</h1>
+        <div class="settings-group">
+            <label for="bgm-volume">BGM音量:</label>
+            <input type="range" id="bgm-volume" min="0" max="100" value="50">
+        </div>
+        <div class="settings-group">
+            <label for="se-volume">SE音量:</label>
+            <input type="range" id="se-volume" min="0" max="100" value="50">
+        </div>
+        <div class="settings-group">
+            <label for="se-toggle">SEオン/オフ:</label>
+            <input type="checkbox" id="se-toggle" checked>
+        </div>
+        <a href="/" class="button secondary">トップ画面に戻る</a>
+    </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+.menu-button {
+  /* ボタンの形を丸くする */
+  width: 60px;          /* 幅 */
+  height: 60px;         /* 高さ */
+  border-radius: 50%;   /* 角を50%丸めることで円になる */
+
+  /* 背景色と文字の設定 */
+  background-color: #4CAF50; /* 背景を緑色に */
+  color: black;              /* 絵文字の色（白） */
+  font-size: 28px;           /* 絵文字の大きさ */
+
+  /* その他 */
+  border: none;              /* 枠線を消す */
+  cursor: pointer;           /* マウスカーソルを手の形に */
+  display: flex;             /* 中身を中央揃えにするための設定 */
+  justify-content: center;   /* 中身を水平方向に中央揃え */
+  align-items: center;       /* 中身を垂直方向に中央揃え */
+}
+
+.battle-button{
+    /* ボタンの形を丸くする */
+  width: 100px;          /* 幅 */
+  height: 100px;         /* 高さ */
+  border-radius: 50%;   /* 角を50%丸めることで円になる */
+
+  /* 背景色と文字の設定 */
+  background-color: #4CAF50; /* 背景を緑色に */
+  color: black;              /* 絵文字の色（白） */
+  font-size: 28px;           /* 絵文字の大きさ */
+
+  /* その他 */
+  border: none;              /* 枠線を消す */
+  cursor: pointer;           /* マウスカーソルを手の形に */
+  display: flex;             /* 中身を中央揃えにするための設定 */
+  justify-content: center;   /* 中身を水平方向に中央揃え */
+  align-items: center;       /* 中身を垂直方向に中央揃え */
+}
+
+body {
+    font-family: -apple-system;
+    margin: 0;
+    background-color: gray; /* 背景色を少しグレーに */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; /* 画面の高さいっぱいに表示 */
+}
+
+.container {
+    background-color: white;
+    width: 90%;
+    max-width: 400px; /* 最大幅を指定してスマホアプリ風に */
+    padding: 25px;
+    border-radius: 20px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    display: flex;
+    flex-direction: column; /* 中身を縦に並べる */
+    gap: 20px; /* 各セクション間の隙間 */
+}
+
+header {
+    border-bottom: 1px solid #eee; /* 区切り線 */
+    padding-bottom: 20px;
+}
+
+.title {
+    font-size: 1.8em;
+    margin: 0;
+    color: #333;
+}
+
+.subtitle {
+    font-size: 1em;
+    color: #666;
+    margin-top: 8px;
+}
+
+main {
+    width: 100%;
+}
+
+.menu {
+    display: flex;
+    flex-direction: column; /* ボタンを縦に並べる */
+    gap: 15px; /* ボタン同士の隙間 */
+}
+
+footer {
+    margin-top: 15px;
+    font-size: 0.8em;
+    color: gray;
+}
