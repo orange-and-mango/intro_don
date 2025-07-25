@@ -28,5 +28,10 @@ def settings():
     return render_template("settings.html")
 
 
+@app.context_processor
+def inject_footer_text():
+    return {"footer_text": "©2025 琉球大学工学部工学科知能情報コース"}
+
+
 if __name__ == "__main__":
     app.run(debug=True)
