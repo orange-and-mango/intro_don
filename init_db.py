@@ -50,12 +50,12 @@ def create_database():
             print("データベース接続を閉じました。")
 
 
-def insert_sample_data():
+def insert_data():
     """musicテーブルにデータを挿入する"""
 
     # 登録したい楽曲データのリスト
     # (title, composer, audio_file, difficulty) の順
-    sample_songs = [
+    songs = [
         ("2:23 AM", "しゃろう", "audio/0001.mp3", "normal"),
         ("10℃", "しゃろう", "audio/0002.mp3", "normal"),
         ("You and Me", "しゃろう", "audio/0003.mp3", "normal"),
@@ -75,11 +75,11 @@ def insert_sample_data():
         INSERT INTO music (title, composer, audio_file, difficulty)
         VALUES (?, ?, ?, ?)
         """,
-            sample_songs,
+            songs,
         )
 
         print(
-            f"{len(sample_songs)} 件のサンプルデータを 'music' テーブルに挿入しました。"
+            f"{len(songs)} 件のサンプルデータを 'music' テーブルに挿入しました。"
         )
         conn.commit()
 
@@ -93,4 +93,4 @@ def insert_sample_data():
 # --- このスクリプトが直接実行された場合に、関数を呼び出す ---
 if __name__ == "__main__":
     create_database()  # データベースとテーブルを作成
-    insert_sample_data()  # サンプルデータを挿入
+    insert_data()  # サンプルデータを挿入
