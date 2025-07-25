@@ -9,45 +9,36 @@ DB_NAME = "database.db"
 def create_database():
     """データベースとmusicテーブルを初期化（作成）する"""
 
-    # 既にデータベースファイルが存在する場合は、一度削除する
     if os.path.exists(DB_NAME):
         os.remove(DB_NAME)
         print(f"既存のデータベース '{DB_NAME}' を削除しました。")
 
+    conn = None
     try:
-        # データベースに接続（ファイルがなければ新規作成される）
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-
         print(f"データベース '{DB_NAME}' を作成しました。")
 
-        # musicテーブルを作成するSQL文
-        # 設計書通りにカラム名、データ型、制約を設定します
-        # AUTOINCREMENTの代わりに、INTEGER PRIMARY KEY を使うのが一般的です
+        # 【修正箇所】hintカラムをここに追加します
         create_table_query = """
         CREATE TABLE music (
             music_id INTEGER PRIMARY KEY AUTOINCREMENT,
             title VARCHAR(255) NOT NULL,
             composer VARCHAR(255) NOT NULL,
             audio_file TEXT NOT NULL UNIQUE,
-            difficulty TEXT NOT NULL
+            difficulty TEXT NOT NULL,
+            hint TEXT
         );
         """
-
-        # SQLを実行してテーブルを作成
         cursor.execute(create_table_query)
-        print("テーブル 'music' を作成しました。")
-
-        # 変更をコミット（保存）
+        print("テーブル 'music' を作成しました。（hintカラム有り）")
         conn.commit()
 
     except sqlite3.Error as e:
-        print(f"データベースエラー: {e}")
+        print(f"データベース作成エラー: {e}")
     finally:
-        # 接続を閉じる
         if conn:
             conn.close()
-            print("データベース接続を閉じました。")
 
 
 def insert_data():
@@ -64,7 +55,7 @@ def insert_data():
         ("サンタは中央線でやってくる", "しゃろう", "audio/0006.mp3", "normal", "乗り物"),
         ("野良猫は宇宙を目指した", "しゃろう", "audio/0007.mp3", "normal", "動物"),
     ]
-
+    conn = None
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
@@ -78,9 +69,7 @@ def insert_data():
             songs,
         )
 
-        print(
-            f"{len(songs)} 件のサンプルデータを 'music' テーブルに挿入しました。"
-        )
+        print(f"{len(songs)} 件のデータを 'music' テーブルに挿入しました。")
         conn.commit()
 
     except sqlite3.Error as e:
