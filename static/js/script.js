@@ -1,100 +1,95 @@
-// DOMContentLoaded: HTMLが完全に読み込まれてからスクリプトを実行する
+// HTMLが完全に読み込まれてからスクリプトを実行する
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('JavaScript is loaded and running!');
-
-    // 各要素の取得（例）
+    // --- ゲームで使う要素を取得 ---
+    const audioPlayer = document.getElementById('audio-player');
     const playButton = document.getElementById('play-intro-button');
     const answerButtons = document.querySelectorAll('.answer-button');
-    const volumeControl = document.getElementById('volume-control');
-    const addToPlaylistButton = document.getElementById('add-to-playlist-button');
-    const scoreDisplay = document.getElementById('score-display');
-    const audioPlayer = document.getElementById('audio-player'); // HTMLのaudioタグを想定
+    const scoreDisplay = document.querySelector('#score-display span');
+    const feedbackMessage = document.getElementById('feedback-message');
 
-    let currentScore = 0; // 現在のスコアを保持
+    // --- ゲームの状態を管理する変数 ---
+    let score = 0;
+    let correctAnswer = null; // 正解の曲情報を保持
 
-    // --- 1. 音楽再生と停止機能 ---
-    if (playButton && audioPlayer) {
-        playButton.addEventListener('click', () => {
-            // 例: 5秒だけ再生して停止
-            audioPlayer.play();
-            console.log('音楽を再生中...');
+    // === 1. クイズ問題を取得してゲームを開始する関数 ===
+    async function fetchQuiz() {
+        // フィードバックメッセージを隠し、ボタンを有効化
+        feedbackMessage.textContent = '';
+        feedbackMessage.style.display = 'none';
+        playButton.disabled = false;
 
-            setTimeout(() => {
-                audioPlayer.pause();
-                audioPlayer.currentTime = 0; // 再生位置を最初に戻す
-                console.log('音楽を停止しました。');
-                // 音楽停止後、選択肢を表示するなどの次の処理へ移行
-                displayChoices(); // 仮の関数
-            }, 5000); // 5000ミリ秒 = 5秒
-        });
-    }
-
-    // --- 2. 選択肢の表示と回答処理 ---
-    function displayChoices() {
-        console.log('選択肢を表示します。');
-        // ここで、サーバーから取得した選択肢データを元にHTML要素を生成・表示する
-        // 例: 仮の選択肢データを設定
-        const choicesData = ['曲A', '曲B (正解)', '曲C', '曲D'];
-        const correctAnswer = '曲B (正解)'; // 正解のタイトル
-
-        answerButtons.forEach((button, index) => {
-            if (choicesData[index]) {
-                button.textContent = choicesData[index];
-                button.style.display = 'block'; // ボタンを表示
-                button.onclick = () => handleAnswer(button.textContent, correctAnswer); // クリックイベントを設定
-            } else {
-                button.style.display = 'none'; // 選択肢が足りない場合は非表示
+        try {
+            // バックエンドのAPIを呼び出して問題を取得
+            const response = await fetch('/api/quiz');
+            if (!response.ok) {
+                throw new Error('クイズの取得に失敗しました。');
             }
-        });
-    }
+            const quizData = await response.json();
 
-    function handleAnswer(selectedAnswer, correctAnswer) {
-        if (selectedAnswer === correctAnswer) {
-            console.log('正解！');
-            alert('正解！');
-            currentScore += 10; // スコア加算
-        } else {
-            console.log('不正解...');
-            alert(`不正解！正解は「${correctAnswer}」でした。`);
+            // 取得したデータをコンソールに表示して確認
+            console.log('取得したクイズデータ:', quizData);
+
+            // 正解の曲情報を保存
+            correctAnswer = quizData.correct_answer;
+
+            // 音声プレイヤーに音源を設定
+            audioPlayer.src = `static/${correctAnswer.audio_file}`;
+
+            // 選択肢ボタンに曲名を設定
+            quizData.choices.forEach((choice, index) => {
+                answerButtons[index].textContent = choice.title;
+                // 各ボタンに、どの曲IDかをデータとして埋め込む
+                answerButtons[index].dataset.musicId = choice.music_id;
+                answerButtons[index].disabled = true; // 最初は押せないように
+            });
+
+        } catch (error) {
+            console.error(error);
+            feedbackMessage.textContent = 'エラーが発生しました。ページを再読み込みしてください。';
+            feedbackMessage.style.display = 'block';
         }
-        updateScoreDisplay(); // スコア表示を更新
-        // 次の問題へ進む、または結果画面へ遷移する処理
-        console.log('次の問題へ...');
-        // ここで次の問題のデータをサーバーから取得するなどの処理を呼び出す
     }
 
-    // --- 3. スコア表示（簡単な例） ---
-    function updateScoreDisplay() {
-        if (scoreDisplay) {
-            scoreDisplay.textContent = `現在のスコア: ${currentScore}`;
-        }
-    }
+    // === 2. イントロ再生ボタンの処理 ===
+    playButton.addEventListener('click', () => {
+        audioPlayer.play();
+        playButton.disabled = true; // 再生中はボタンを無効化
 
-    // --- 4. 音量調整機能 ---
-    if (volumeControl && audioPlayer) {
-        volumeControl.addEventListener('input', (event) => {
-            const volume = event.target.value / 100; // 0-100を0-1に変換
-            audioPlayer.volume = volume;
-            console.log(`音量を調整しました: ${volume}`);
-            // 必要であれば、SEの音量も調整するロジックを追加
+        // 選択肢ボタンを有効化
+        answerButtons.forEach(button => button.disabled = false);
+
+        // 5秒後に音を停止
+        setTimeout(() => {
+            if (!audioPlayer.paused) {
+                audioPlayer.pause();
+            }
+        }, 5000);
+    });
+
+    // === 3. 回答ボタンの処理 ===
+    answerButtons.forEach(button => {
+        button.addEventListener('click', (event) => {
+            // プレイヤーが選んだ答えのID
+            const selectedMusicId = Number(event.target.dataset.musicId);
+
+            // 正誤判定
+            if (selectedMusicId === correctAnswer.music_id) {
+                feedbackMessage.textContent = '正解！ 🎉';
+                score += 10; // スコアを加算
+                scoreDisplay.textContent = score;
+            } else {
+                feedbackMessage.textContent = `不正解... 正解は「${correctAnswer.title}」でした`;
+            }
+
+            feedbackMessage.style.display = 'block';
+            // 全てのボタンを一旦無効化
+            answerButtons.forEach(btn => btn.disabled = true);
+
+            // 2秒後に次の問題へ
+            setTimeout(fetchQuiz, 2000);
         });
-    }
+    });
 
-    // --- 5. お気に入り追加機能 ---
-    if (addToPlaylistButton) {
-        addToPlaylistButton.addEventListener('click', () => {
-            // 現在再生中の曲の情報を取得（これはサーバーサイドから取得したデータに依存）
-            const currentSongTitle = '現在のイントロ曲名'; // 仮の曲名
-            console.log(`${currentSongTitle} をプレイリストに追加しました！`);
-            alert(`${currentSongTitle} をプレイリストに追加しました！`);
-
-            // サーバーサイドAPIを呼び出して、データベースにお気に入りとして登録する
-            // 例: fetch('/api/add_to_playlist', { method: 'POST', body: JSON.stringify({ song: currentSongTitle }) })
-            //     .then(response => response.json())
-            //     .then(data => console.log(data));
-        });
-    }
-
-    // 初期スコア表示
-    updateScoreDisplay();
+    // --- 最初にゲームを初期化 ---
+    fetchQuiz();
 });
