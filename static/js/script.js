@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const answerButtons = document.querySelectorAll('.answer-button');
     const scoreDisplay = document.querySelector('#score-display span');
     const feedbackMessage = document.getElementById('feedback-message');
+    const hintButton = document.getElementById('hint-button');
+    const hintDisplay = document.getElementById('hint-display');
 
     // --- ゲームの状態を管理する変数 ---
     let score = 0;
@@ -17,6 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
         feedbackMessage.textContent = '';
         feedbackMessage.style.display = 'none';
         playButton.disabled = false;
+        hintDisplay.style.display = 'none';
+        hintButton.disabled = false; // 次の問題でヒントボタンを再度有効化
 
         try {
             // バックエンドのAPIを呼び出して問題を取得
@@ -89,7 +93,14 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(fetchQuiz, 2000);
         });
     });
-
+    // === 4. ヒントボタンの処理 ===
+    hintButton.addEventListener('click', () => {
+        if (correctAnswer && correctAnswer.hint) {
+            hintDisplay.textContent = `ヒント: ${correctAnswer.hint}`;
+            hintDisplay.style.display = 'block';
+            hintButton.disabled = true; // ヒントは1回だけ
+        }
+    });
     // --- 最初にゲームを初期化 ---
     fetchQuiz();
 });

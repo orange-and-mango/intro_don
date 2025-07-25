@@ -54,15 +54,15 @@ def insert_data():
     """musicテーブルにデータを挿入する"""
 
     # 登録したい楽曲データのリスト
-    # (title, composer, audio_file, difficulty) の順
+    # (title, composer, audio_file, difficulty, hint) の順
     songs = [
-        ("2:23 AM", "しゃろう", "audio/0001.mp3", "normal"),
-        ("10℃", "しゃろう", "audio/0002.mp3", "normal"),
-        ("You and Me", "しゃろう", "audio/0003.mp3", "normal"),
-        ("Cassette Tape Dream", "しゃろう", "audio/0004.mp3", "normal"),
-        ("極東の羊、テレキャスターと踊る", "しゃろう", "audio/0005.mp3", "normal"),
-        ("サンタは中央線でやってくる", "しゃろう", "audio/0006.mp3", "normal"),
-        ("野良猫は宇宙を目指した", "しゃろう", "audio/0007.mp3", "normal"),
+        ("2:23 AM", "しゃろう", "audio/0001.mp3", "normal", "時間"),
+        ("10℃", "しゃろう", "audio/0002.mp3", "normal", "３文字"),
+        ("You and Me", "しゃろう", "audio/0003.mp3", "normal", "英語"),
+        ("Cassette Tape Dream", "しゃろう", "audio/0004.mp3", "normal", "英語"),
+        ("極東の羊、テレキャスターと踊る", "しゃろう", "audio/0005.mp3", "normal", "長いタイトル"),
+        ("サンタは中央線でやってくる", "しゃろう", "audio/0006.mp3", "normal", "乗り物"),
+        ("野良猫は宇宙を目指した", "しゃろう", "audio/0007.mp3", "normal", "動物"),
     ]
 
     try:
@@ -72,8 +72,8 @@ def insert_data():
         # SQL文でデータを挿入
         cursor.executemany(
             """
-        INSERT INTO music (title, composer, audio_file, difficulty)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO music (title, composer, audio_file, difficulty, hint)
+        VALUES (?, ?, ?, ?, ?)
         """,
             songs,
         )
