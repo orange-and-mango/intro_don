@@ -4,21 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>フリーBGMイントロドン</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1 class="title">🎵 フリーBGMイントロドン 🎵</h1>
-            <p class="subtitle">BGMのイントロを聞いて曲名を当てよう！</p>
+            <h1 class="title">フリーBGMイントロドン</h1>
         </header>
         
         <main>
             <div class="menu">
-                <a href="/quiz" class="button button-primary">🎮 ゲーム開始</a>
-                <a href="/playlist" class="button button-secondary">🎵 プレイリスト</a>
-                <a href="/settings" class="button button-secondary">⚙️ 設定</a>
-                <a href="/result" class="button button-secondary">🏆 ランキング</a>
+                <a href="/quiz" class="menu-button">ゲーム開始</a>
+                <a href="/playlist" class="menu-button">プレイリスト</a>
+                <a href="/settings" class="menu-button">設定</a>
             </div>
         </main>
         

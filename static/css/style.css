@@ -1,20 +1,29 @@
 .menu-button {
-  /* ボタンの形を丸くする */
-  width: 60px;          /* 幅 */
-  height: 60px;         /* 高さ */
-  border-radius: 50%;   /* 角を50%丸めることで円になる */
-
-  /* 背景色と文字の設定 */
-  background-color: #4CAF50; /* 背景を緑色に */
-  color: black;              /* 絵文字の色（白） */
-  font-size: 28px;           /* 絵文字の大きさ */
-
-  /* その他 */
-  border: none;              /* 枠線を消す */
+  border-radius: 20px;   /* 角を20px丸める */
+  width: auto;          /* 幅を文字サイズに合わせる */
+  min-width: 150px;
+  border: black 0.5px solid; /* 枠線を黒色に */
   cursor: pointer;           /* マウスカーソルを手の形に */
   display: flex;             /* 中身を中央揃えにするための設定 */
   justify-content: center;   /* 中身を水平方向に中央揃え */
-  align-items: center;       /* 中身を垂直方向に中央揃え */
+  font-size: 20px;           /* 絵文字の大きさ */
+  padding: 10px;
+}
+a:link {
+    color:black;
+    text-decoration: none; /* 下線を消す */
+}
+
+a:visited {
+    color:black;
+}
+
+a:hover {
+    color:black;
+}
+
+a:active {
+    color:black;
 }
 
 .battle-button{
@@ -37,9 +46,7 @@
 }
 
 body {
-    font-family: -apple-system;
-    margin: 0;
-    background-color: gray; /* 背景色を少しグレーに */
+    background-color: ghostwhite; /* 背景色を少しグレーに */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -50,7 +57,7 @@ body {
     background-color: white;
     width: 90%;
     max-width: 400px; /* 最大幅を指定してスマホアプリ風に */
-    padding: 25px;
+    padding: 30px;
     border-radius: 20px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
     text-align: center;
@@ -68,6 +75,7 @@ header {
     font-size: 1.8em;
     margin: 0;
     color: #333;
+    text-align: center;
 }
 
 .subtitle {
@@ -84,10 +92,11 @@ main {
     display: flex;
     flex-direction: column; /* ボタンを縦に並べる */
     gap: 15px; /* ボタン同士の隙間 */
+    padding: 20px;
+    align-items: center;
 }
 
 footer {
-    margin-top: 15px;
     font-size: 0.8em;
     color: gray;
 }
