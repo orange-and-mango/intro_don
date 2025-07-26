@@ -149,6 +149,9 @@ document.addEventListener('DOMContentLoaded', () => {
             this.updateUI();
             this.state.round++;
 
+            // 次のラウンドのためにボタンの状態をリセット
+            UI.addPlaylistButton.disabled = false;
+
             try {
                 const response = await fetch(SETTINGS.API_URLS.QUIZ);
                 if (!response.ok) throw new Error('クイズの取得に失敗しました。');
@@ -370,6 +373,8 @@ document.addEventListener('DOMContentLoaded', () => {
          */
         addToPlaylist() {
             this.showTemporaryMessage(`「${this.state.correctAnswer.title}」をプレイリストに追加しました。（仮）`);
+            // ボタンを無効化して複数回の追加を防ぐ
+            UI.addPlaylistButton.disabled = true;
         },
 
         /**

@@ -61,6 +61,7 @@ body {
     background-color: white;
     width: 90%;
     max-width: 400px; /* 最大幅を指定してスマホアプリ風に */
+    min-height: 580px;
     padding: 30px;
     border-radius: 20px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
@@ -68,6 +69,7 @@ body {
     display: flex;
     flex-direction: column; /* 中身を縦に並べる */
     gap: 20px; /* 各セクション間の隙間 */
+    justify-content: space-between; /* 上下の要素を均等に配置 */
 }
 
 header {
@@ -172,8 +174,12 @@ main {
     margin: 0 auto; /* ボタンを中央に配置 */
 }
 
+.player-button:hover {
+    background-color: #f0f0f0; /* ホバー時の背景色 */
+}
+
 .play-audio-button {
-    background-color: black; /* 緑色の背景 */
+    background-color: orange; /* オレンジ色の背景 */
     color: white;              /* 文字色を白に */
     border: none;              /* 枠線を消す */
     padding: 10px 20px;        /* 上下10px、左右20pxの余白 */
@@ -214,6 +220,26 @@ main {
     gap: 10px; /* ボタン同士の隙間 */
 }
 
+.bottom-buttons {
+    background-color: white; /* 緑色の背景 */
+    color: black;              /* 文字色を白に */
+    border: black 0.5px solid;              /* 枠線を消す */
+    padding: 5px 10px;        /* 上下10px、左右20pxの余白 */
+    border-radius: 5px;        /* 角を丸くする */
+    cursor: pointer;           /* マウスカーソルを手の形に */
+    font-size: 1em;            /* フォントサイズ */
+    text-decoration: none;     /* 下線を消す */
+}
+
+.bottom-buttons:hover {
+    background-color: #f0f0f0; /* ホバー時の背景色 */
+}
+
+.bottom-buttons:disabled {
+    background-color: #e0e0e0; /* 無効化時の背景色 */
+    color: #999;               /* 無効化時の文字色 */
+    cursor: not-allowed;       /* マウスカーソルを禁止に */
+}
 
 footer {
     font-size: 0.8em;
