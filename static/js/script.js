@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
             SUBMIT_SCORES: '/api/submit_scores',
         },
         RESULT_PAGE_URL: '/result',
+        QUIT_URL: '/', // ゲームをやめるボタンの遷移先URL
     };
 
     // --- UI要素 (DOM要素をまとめて取得) ---
@@ -42,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
         playerButtonsContainer: document.querySelector('.player-buttons-container'),
         playAudioButton: document.querySelector('.play-audio-button'),
         readyCountdownDisplay: document.querySelector('.ready-countdown'),
+        quitGameButton: document.getElementById('quit-game-button'),
     };
 
     // --- ゲーム管理オブジェクト ---
@@ -60,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 audioTimeout: null,
                 countdownInterval: null,
                 readyCountdownInterval: null,
+                temporaryMessageTimeout: null,
             },
         },
 
@@ -81,6 +84,9 @@ document.addEventListener('DOMContentLoaded', () => {
             UI.hintButton.addEventListener('click', () => this.showHint());
             UI.nextQuestionButton.addEventListener('click', () => this.nextRound());
             UI.addPlaylistButton.addEventListener('click', () => this.addToPlaylist());
+            if (UI.quitGameButton) {
+                UI.quitGameButton.addEventListener('click', () => this.quitGame());
+            }
 
             UI.answerButtons.forEach(button => {
                 button.addEventListener('click', (event) => {
@@ -90,11 +96,47 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             document.addEventListener('keydown', (event) => {
-                if (this.state.currentStatus !== 'PLAYING') return;
-                if (event.key.toLowerCase() === SETTINGS.PLAYER_KEYS.PLAYER1) {
-                    UI.player1Button.click();
-                } else if (event.key.toLowerCase() === SETTINGS.PLAYER_KEYS.PLAYER2) {
-                    UI.player2Button.click();
+                // --- グローバルキー ---
+                // Escapeキーはいつでもゲームを終了
+                if (event.key === 'Escape') {
+                    this.quitGame();
+                    return;
+                }
+
+                // --- ステータス別キー ---
+                switch (this.state.currentStatus) {
+                    case 'READY_TO_PLAY':
+                        if (event.code === 'Space') {
+                            event.preventDefault(); // ページのスクロールを防止
+                            UI.playAudioButton.click();
+                        }
+                        break;
+
+                    case 'PLAYING':
+                        if (event.key.toLowerCase() === SETTINGS.PLAYER_KEYS.PLAYER1) {
+                            UI.player1Button.click();
+                        } else if (event.key.toLowerCase() === SETTINGS.PLAYER_KEYS.PLAYER2) {
+                            UI.player2Button.click();
+                        }
+                        break;
+
+                    case 'ANSWERING':
+                        const keyNumber = parseInt(event.key, 10);
+                        if (keyNumber >= 1 && keyNumber <= 4) {
+                            const buttonIndex = keyNumber - 1;
+                            if (UI.answerButtons[buttonIndex]) {
+                                event.preventDefault(); // 数字キーのデフォルト動作を防止
+                                UI.answerButtons[buttonIndex].click();
+                            }
+                        }
+                        break;
+                    
+                    case 'SHOW_RESULT':
+                         if (event.code === 'Space' && UI.nextQuestionButton.style.display !== 'none') {
+                            event.preventDefault(); // ページのスクロールを防止
+                            UI.nextQuestionButton.click();
+                        }
+                        break;
                 }
             });
         },
@@ -306,11 +348,19 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         /**
+         * ゲームを中断して指定されたURLに移動
+         */
+        quitGame() {
+            // 確認ダイアログは環境によって動作しないことがあるため、直接移動します
+            window.location.href = SETTINGS.QUIT_URL;
+        },
+
+        /**
          * ヒントを表示
          */
         showHint() {
             if (this.state.correctAnswer && this.state.correctAnswer.hint) {
-                alert(`ヒント: ${this.state.correctAnswer.hint}`);
+                this.showTemporaryMessage(`ヒント: ${this.state.correctAnswer.hint}`);
                 UI.hintButton.disabled = true;
             }
         },
@@ -319,18 +369,46 @@ document.addEventListener('DOMContentLoaded', () => {
          * プレイリストに追加（機能のプレースホルダー）
          */
         addToPlaylist() {
-            // ここにプレイリスト追加のロジックを実装
-            alert(`「${this.state.correctAnswer.title}」をプレイリストに追加しました。（仮）`);
+            this.showTemporaryMessage(`「${this.state.correctAnswer.title}」をプレイリストに追加しました。（仮）`);
         },
 
         /**
-         * すべてのタイマーをクリア
+         * 一時的なメッセージをfeedback-message要素に表示
+         * @param {string} message - 表示するメッセージ
+         * @param {number} duration - 表示時間 (ミリ秒)
+         */
+        showTemporaryMessage(message, duration = 3000) {
+            const messageEl = UI.feedbackMessage;
+
+            // 既存のメッセージタイマーがあればクリア
+            if (this.state.timers.temporaryMessageTimeout) {
+                clearTimeout(this.state.timers.temporaryMessageTimeout);
+            }
+
+            // メッセージを設定して表示
+            messageEl.textContent = message;
+            messageEl.style.display = 'block';
+
+            // 指定時間後にメッセージを消して非表示にするタイマーを設定
+            this.state.timers.temporaryMessageTimeout = setTimeout(() => {
+                // メッセージが上書きされていない場合のみクリア
+                if (messageEl.textContent === message) {
+                    messageEl.textContent = '';
+                    messageEl.style.display = 'none';
+                }
+                this.state.timers.temporaryMessageTimeout = null;
+            }, duration);
+        },
+
+        /**
+         * すべてのタイマーをクリアし、IDをリセット
          */
         clearTimers() {
-            Object.values(this.state.timers).forEach(timer => {
-                if (timer) {
-                    clearTimeout(timer);
-                    clearInterval(timer);
+            Object.keys(this.state.timers).forEach(key => {
+                if (this.state.timers[key]) {
+                    clearTimeout(this.state.timers[key]);
+                    clearInterval(this.state.timers[key]);
+                    this.state.timers[key] = null;
                 }
             });
         },
