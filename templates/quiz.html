@@ -9,28 +9,40 @@
 <body>
     <div class="container game-screen">
         <div class="game-header">
-            <div id="time-limit-display">残り時間: <span>5</span>秒</div>
-            <div id="score-display">スコア: <span>0</span></div>
+            <h1><div id="question-title"></div></h1>
+            <h2><div id="time-limit-display"></div></h2>
+            <div class="score-display">
+                <div id="player1-container">プレイヤー1<br>
+                    <div id="player1-score">スコア: 0</div>
+                </div>
+                <div id="player2-container">プレイヤー2<br>
+                    <div id="player2-score">スコア: 0</div>
+                </div>
+            </div>
         </div>
-
-        <audio id="audio-player" src="" preload="auto"></audio>
-
-        <button id="play-intro-button" class="button primary large">イントロを再生！</button>
-
-        <div class="choices">
-            <button class="answer-button" data-choice-id="0"></button>
-            <button class="answer-button" data-choice-id="1"></button>
-            <button class="answer-button" data-choice-id="2"></button>
-            <button class="answer-button" data-choice-id="3"></button>
+        <div class="game-body">
+            <audio id="audio-player" src="" preload="auto"></audio>
+            <div class="player-buttons-container">
+                    <button id="player1-button" class="player-button">🎵</button>
+                    <button id="player2-button" class="player-button">🎵</button>
+            </div>
+            <div class="choices-container">
+                <button class="answer-button" data-choice-id="0"></button>
+                <button class="answer-button" data-choice-id="1"></button>
+                <button class="answer-button" data-choice-id="2"></button>
+                <button class="answer-button" data-choice-id="3"></button>
+            </div>
+            <h3><div class="ready-countdown"></div></h3>
+            <button class="play-audio-button">スタート</button>
         </div>
-
-        <div class="game-controls">
-            <button id="hint-button" class="button secondary small">ヒント</button>
-            <button id="add-to-playlist-button" class="button secondary small">お気に入りに追加</button>
-            <a href="/" class="button danger small">トップへ戻る</a>
-        </div>
-        <div id="hint-display" class="feedback-message" style="display: none;"></div> 
+        <div class="result-feedback"></div>
+        <button class="next-question-button">次の問題へ</button>
         <div id="feedback-message" class="feedback-message"></div>
+        <div class="game-controls">
+            <button id="hint-button" class="menu-buttons">ヒント</button>
+            <button id="add-to-playlist-button" class="menu-buttons">プレイリストに追加</button>
+            <a href="/" class="menu-buttons">ゲームをやめる</a>
+        </div>
         <footer>
             <p>{{ footer_text }}</p>
         </footer>

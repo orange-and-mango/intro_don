@@ -1,8 +1,12 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request, session
 import sqlite3
 import random
+import secrets
 
 app = Flask(__name__)
+
+# セッション用のシークレットキーを設定
+app.secret_key = secrets.token_hex(16)
 
 
 @app.route("/")
@@ -17,7 +21,21 @@ def quiz():
 
 @app.route("/result")
 def result():
-    return render_template("result.html")
+    player1_score = session.get("player1Score", 0)
+    player2_score = session.get("player2Score", 0)
+
+    if player1_score > player2_score:
+        winner = "プレイヤー1の勝ち！"
+    elif player1_score < player2_score:
+        winner = "プレイヤー2の勝ち！"
+    else:
+        winner = "引き分け！"
+    return render_template(
+        "result.html",
+        player1_score=player1_score,
+        player2_score=player2_score,
+        winner=winner,
+    )
 
 
 @app.route("/playlist")
@@ -77,6 +95,27 @@ def api_quiz():
         # 接続を閉じる
         if conn:
             conn.close()
+
+
+@app.route("/api/submit_scores", methods=["POST"])
+def submit_scores():
+    try:
+        print("スコア送信リクエストを受信")
+        data = request.get_json()
+        print(f"受信したデータ: {data}")
+
+        if not data:
+            print("リクエストボディが空です")
+            return jsonify({"error": "リクエストボディが空です"}), 400
+
+        session["player1Score"] = data.get("player1Score", 0)
+        session["player2Score"] = data.get("player2Score", 0)
+
+        print("スコアをセッションに保存しました")
+        return jsonify({"message": "スコアを保存しました"}), 200
+    except Exception as e:
+        print(f"エラー: {e}")
+        return jsonify({"error": "サーバーエラーが発生しました"}), 500
 
 
 @app.context_processor

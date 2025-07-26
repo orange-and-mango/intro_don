@@ -1,3 +1,7 @@
+body {
+font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+}
+
 .menu-button {
   border-radius: 20px;   /* 角を20px丸める */
   width: auto;          /* 幅を文字サイズに合わせる */
@@ -95,6 +99,102 @@ main {
     padding: 20px;
     align-items: center;
 }
+
+.choices-container {
+    display: flex;
+    flex-direction: column; /* 選択肢を縦に並べる */
+    gap: 10px; /* 選択肢同士の隙間 */
+}
+
+.answer-button {
+    background-color: white; /* 白色の背景 */
+    color: black;            /* 文字色を黒に */
+    border: 1px solid #ccc; /* 薄いグレーの枠線 */
+    padding: 10px 20px;        /* 上下10px、左右20pxの余白 */
+    border-radius: 5px;        /* 角を丸くする */
+    cursor: pointer;           /* マウスカーソルを手の形に */
+    font-size: 1em;            /* フォントサイズ */
+}
+
+.answer-button:hover {
+    background-color: #f0f0f0; /* ホバー時の背景色 */
+}
+
+.answer-button:disabled {
+    background-color: #e0e0e0; /* 無効化時の背景色 */
+    color: #999;               /* 無効化時の文字色 */
+    cursor: not-allowed;       /* マウスカーソルを禁止に */
+}
+
+.next-question-button {
+    background-color: #4CAF50; /* 緑色の背景 */
+    color: white;              /* 文字色を白に */
+    border: none;              /* 枠線を消す */
+    padding: 10px 20px;        /* 上下10px、左右20pxの余白 */
+    border-radius: 5px;        /* 角を丸くする */
+    cursor: pointer;           /* マウスカーソルを手の形に */
+    font-size: 1em;            /* フォントサイズ */
+    max-width: 10em;          /* 最大幅を指定 */
+    align-items: center;
+    margin: 0 auto; /* ボタンを中央に配置 */
+}
+
+.score-display {
+    display: flex;
+    justify-content: space-between;
+    margin: 20px 0 0 0;
+}
+
+
+.player-buttons-container {
+    display: none;
+    justify-content: center;
+    gap: 10px;
+    margin: 0 0 20px 0; /* 下部に余白を追加 */
+}
+
+.player-button {
+    background-color: white; /* 白色の背景 */
+    color: black;              /* 文字色を黒に */
+    border: black 2px solid;              /* 枠線を黒に */
+    padding: 20px;        /* 上下20px、左右20pxの余白 */
+    border-radius: 50%;        /* 角を丸くする */
+    width: 2em;               /* 幅をフォントサイズに合わせる */
+    height: 2em;              /* 高さをフォントサイズに合わせる */
+    cursor: pointer;           /* マウスカーソルを手の形に */
+    font-size: 5em;            /* フォントサイズ */
+    margin: 0 auto; /* ボタンを中央に配置 */
+}
+
+.play-audio-button {
+    background-color: black; /* 緑色の背景 */
+    color: white;              /* 文字色を白に */
+    border: none;              /* 枠線を消す */
+    padding: 10px 20px;        /* 上下10px、左右20pxの余白 */
+    border-radius: 5px;        /* 角を丸くする */
+    cursor: pointer;           /* マウスカーソルを手の形に */
+    font-size: 1em;            /* フォントサイズ */
+    margin: 0 auto;
+    display: block;
+}
+
+.feedback-message {
+    display: none; /* 初期状態では非表示 */
+    margin-top: 20px;
+    padding: 10px;
+    border-radius: 5px;
+    color: red; /* 文字色 */
+}
+
+.game-controls {
+    display: flex;
+    flex-direction: row; /* 横一列に並べる */
+    justify-content: center; /* 中央揃え */
+    align-items: center;
+    margin-top: 20px;
+    gap: 10px; /* ボタン同士の隙間 */
+}
+
 
 footer {
     font-size: 0.8em;

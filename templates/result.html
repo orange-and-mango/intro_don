@@ -8,12 +8,16 @@
 </head>
 <body>
     <div class="container">
-        <h1>スコア画面</h1>
+         <h1>結果発表</h1>
         <div class="result-score">
-            あなたのスコア: <span id="final-score">0</span>点
+            <p>プレイヤー1のスコア: {{ player1_score }}</p>
+            <p>プレイヤー2のスコア: {{ player2_score }}</p>
+        </div>
+        <div class="result-winner">
+            <h2>{{ winner }}</h2>
         </div>
         <div class="result-actions">
-            <a href="/" class="button primary">トップ画面に戻る</a>
+            <a href="/" class="button primary">トップへ戻る</a>
             
         </div>
         <footer>
