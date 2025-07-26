@@ -1,273 +1,414 @@
 // HTMLが完全に読み込まれてからスクリプトを実行する
 document.addEventListener('DOMContentLoaded', () => {
-    // --- ゲームで使う要素を取得 ---
-    const audioPlayer = document.getElementById('audio-player');
-    const answerButtons = document.querySelectorAll('.answer-button');
-    const feedbackMessage = document.getElementById('feedback-message');
-    const resultFeedback = document.querySelector('.result-feedback');
-    const hintButton = document.getElementById('hint-button');
-    const gameBody = document.querySelector('.game-body');
-    const nextQuestionButton = document.querySelector('.next-question-button');
-    const questionTitle = document.getElementById('question-title');
-    const timeLimitDisplay = document.getElementById('time-limit-display');
-    const addPlaylistButton = document.getElementById('add-to-playlist-button');
-    const player1Button = document.getElementById('player1-button');
-    const player2Button = document.getElementById('player2-button');
-    const player1ScoreDisplay = document.getElementById('player1-score');
-    const player2ScoreDisplay = document.getElementById('player2-score');
-    const choicesContainer = document.querySelector('.choices-container');
-    const playerButtonsContainer = document.querySelector('.player-buttons-container');
-    const playAudioButton = document.querySelector('.play-audio-button');
-    const readyCountdownDisplay = document.querySelector('.ready-countdown');
 
-    // --- ゲームの状態を管理する変数 ---
-    let round = 0; // 現在のラウンド
-    let maxRounds = 10; // 最大ラウンド数
-    let correctAnswer = null; // 正解の曲情報を保持
-    let timeoutId = null; // タイムアウトIDを保持
-    let countdownId = null; // カウントダウン用のID
-    let timeLimit = 10; // タイムリミット（秒）
-    let correctScore = 20 ; // 正解のスコア
-    let incorrectScore = -10; // 不正解のスコア
-    let player1Score = 0;
-    let player2Score = 0;
-    let isAnswered = false; // どちらかが回答したかを判定
-    let whoAnswered = null; // どちらのプレイヤーが回答したかを記録
-    let readyCountdownID = null; // 準備カウントダウン用のID
+    // --- 設定値 (ゲームのルールなどをここで一元管理) ---
+    const SETTINGS = {
+        MAX_ROUNDS: 10,
+        TIME_LIMIT: 10,
+        AUDIO_PLAY_DURATION: 5000, // 音声が再生される時間 (ミリ秒)
+        READY_COUNTDOWN_SECONDS: 3,
+        SCORE: {
+            CORRECT: 20,
+            INCORRECT: -10,
+        },
+        PLAYER_KEYS: {
+            PLAYER1: 'f',
+            PLAYER2: 'j',
+        },
+        API_URLS: {
+            QUIZ: '/api/quiz',
+            SUBMIT_SCORES: '/api/submit_scores',
+        },
+        RESULT_PAGE_URL: '/result',
+    };
 
-    // === 1. クイズ問題を取得してゲームを開始する関数 ===
-    async function fetchQuiz() {
-        // フィードバックメッセージを隠し、ボタンを有効化
-        round++; // ラウンドを進める
-        audioPlayer.pause(); // 音声を停止
-        feedbackMessage.textContent = '';
-        feedbackMessage.style.display = 'none';
-        addPlaylistButton.style.display = 'none'; // お気に入り追加ボタンを隠す
-        hintButton.style.display = 'none'; // ヒントボタンを表示
-        hintButton.disabled = false; // 次の問題でヒントボタンを再度有効化
-        nextQuestionButton.style.display = 'none'; // ボタンを隠す
-        resultFeedback.style.display = 'none'; // 結果フィードバックを隠す
-        isAnswered = false; // 回答状態をリセット
-        whoAnswered = null; // 回答したプレイヤーをリセット
-        choicesContainer.style.display = 'none'; // 選択肢を隠す
-        playerButtonsContainer.style.display = 'none'; // プレイヤーボタンを隠す
-        timeLimitDisplay.style.display = 'none'; // 残り時間表示を隠す
-        playAudioButton.style.display = 'flex'; // 再生ボタンを表示
-        gameBody.style.display = 'block'; // ゲームエリアを表示
+    // --- UI要素 (DOM要素をまとめて取得) ---
+    const UI = {
+        audioPlayer: document.getElementById('audio-player'),
+        answerButtons: document.querySelectorAll('.answer-button'),
+        feedbackMessage: document.getElementById('feedback-message'),
+        resultFeedback: document.querySelector('.result-feedback'),
+        hintButton: document.getElementById('hint-button'),
+        gameBody: document.querySelector('.game-body'),
+        nextQuestionButton: document.querySelector('.next-question-button'),
+        questionTitle: document.getElementById('question-title'),
+        timeLimitDisplay: document.getElementById('time-limit-display'),
+        addPlaylistButton: document.getElementById('add-to-playlist-button'),
+        player1Button: document.getElementById('player1-button'),
+        player2Button: document.getElementById('player2-button'),
+        player1ScoreDisplay: document.getElementById('player1-score'),
+        player2ScoreDisplay: document.getElementById('player2-score'),
+        choicesContainer: document.querySelector('.choices-container'),
+        playerButtonsContainer: document.querySelector('.player-buttons-container'),
+        playAudioButton: document.querySelector('.play-audio-button'),
+        readyCountdownDisplay: document.querySelector('.ready-countdown'),
+    };
 
-        try {
-            // バックエンドのAPIを呼び出して問題を取得
-            const response = await fetch('/api/quiz');
-            if (!response.ok) {
-                throw new Error('クイズの取得に失敗しました。');
-            }
-            const quizData = await response.json();
+    // --- ゲーム管理オブジェクト ---
+    const game = {
+        // --- 状態管理 ---
+        state: {
+            round: 0,
+            player1Score: 0,
+            player2Score: 0,
+            correctAnswer: null,
+            whoAnswered: null, // 1 or 2
+            // ゲームの進行状況を管理するステータス
+            // 'LOADING', 'READY_TO_PLAY', 'COUNTDOWN', 'PLAYING', 'ANSWERING', 'SHOW_RESULT', 'ENDED'
+            currentStatus: 'LOADING',
+            timers: {
+                audioTimeout: null,
+                countdownInterval: null,
+                readyCountdownInterval: null,
+            },
+        },
 
-            // 正解の曲情報を保存
-            correctAnswer = quizData.correct_answer;
+        /**
+         * ゲームの初期化
+         */
+        init() {
+            this.bindEvents();
+            this.fetchQuiz();
+        },
 
-            // 音声プレイヤーに音源を設定
-            audioPlayer.src = `static/${correctAnswer.audio_file}`;
+        /**
+         * イベントリスナーをまとめて設定
+         */
+        bindEvents() {
+            UI.playAudioButton.addEventListener('click', () => this.startReadyCountdown());
+            UI.player1Button.addEventListener('click', () => this.handlePlayerAnswer(1));
+            UI.player2Button.addEventListener('click', () => this.handlePlayerAnswer(2));
+            UI.hintButton.addEventListener('click', () => this.showHint());
+            UI.nextQuestionButton.addEventListener('click', () => this.nextRound());
+            UI.addPlaylistButton.addEventListener('click', () => this.addToPlaylist());
 
-            // 選択肢ボタンに曲名を設定
-            quizData.choices.forEach((choice, index) => {
-                answerButtons[index].textContent = choice.title;
-                // 各ボタンに、どの曲IDかをデータとして埋め込む
-                answerButtons[index].dataset.musicId = choice.music_id;
-                answerButtons[index].disabled = true; // 最初は押せないように
+            UI.answerButtons.forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const selectedMusicId = Number(event.target.dataset.musicId);
+                    this.checkAnswer(selectedMusicId);
+                });
             });
-            // 問題タイトルを設定
-            questionTitle.textContent = `第 ${round} 問`;
 
-        } catch (error) {
-            console.error(error);
-            gameBody.style.display = 'none'; // ゲームエリアを隠す
-            feedbackMessage.textContent = 'エラーが発生しました。ページを再読み込みしてください。';
-            feedbackMessage.style.display = 'block';
-        }
-    }
+            document.addEventListener('keydown', (event) => {
+                if (this.state.currentStatus !== 'PLAYING') return;
+                if (event.key.toLowerCase() === SETTINGS.PLAYER_KEYS.PLAYER1) {
+                    UI.player1Button.click();
+                } else if (event.key.toLowerCase() === SETTINGS.PLAYER_KEYS.PLAYER2) {
+                    UI.player2Button.click();
+                }
+            });
+        },
 
-    // 音楽を再生するボタンのクリックイベント
-    playAudioButton.addEventListener('click', () => {
-        clearTimeout(timeoutId); // 前のタイムアウトをクリア
-        clearInterval(readyCountdownID); // 前のカウントダウンをクリア
-        playAudioButton.style.display = 'none'; // 再生ボタンを隠す
-        readyCountdownDisplay.style.display = 'block'; // カウントダウン表示を表示
-        let readyCountdown = 3; // 準備カウントダウンの秒数
-        readyCountdownDisplay.textContent = `${readyCountdown}`;
-        // 1秒ごとにカウントダウンを更新
-        readyCountdownID = setInterval(() => {
-            readyCountdown--;
-            readyCountdownDisplay.textContent = `${readyCountdown}`;
+        /**
+         * クイズデータをAPIから取得
+         */
+        async fetchQuiz() {
+            this.state.currentStatus = 'LOADING';
+            this.updateUI();
+            this.state.round++;
 
-            if (readyCountdown <= 0) {
-                clearInterval(readyCountdownID); // カウントダウンを停止
-                readyCountdownDisplay.textContent = ''; // カウントダウン表示をクリア
-                readyCountdownDisplay.style.display = 'none'; // カウントダウン表示を隠す
+            try {
+                const response = await fetch(SETTINGS.API_URLS.QUIZ);
+                if (!response.ok) throw new Error('クイズの取得に失敗しました。');
+                const quizData = await response.json();
 
-                startAudio(); // 音楽を最初から再生
-                startCountdown(); // カウントダウンを開始
-                // 選択肢ボタンを有効化
-                playerButtonsContainer.style.display = 'flex'; // プレイヤーボタンを表示
-                hintButton.style.display = 'block'; // ヒントボタンを表示
-                timeLimitDisplay.style.display = 'block'; // 残り時間表示を表示
-                answerButtons.forEach(button => button.disabled = false);
+                this.state.correctAnswer = quizData.correct_answer;
+                UI.audioPlayer.src = `static/${this.state.correctAnswer.audio_file}`;
+
+                quizData.choices.forEach((choice, index) => {
+                    UI.answerButtons[index].textContent = choice.title;
+                    UI.answerButtons[index].dataset.musicId = choice.music_id;
+                });
+
+                this.state.currentStatus = 'READY_TO_PLAY';
+            } catch (error) {
+                console.error(error);
+                this.state.currentStatus = 'ERROR';
+            } finally {
+                this.updateUI();
             }
-    }, 1000);
-    });
+        },
 
-    // 音楽を最初に戻して再生する関数
-    function startAudio() {
-        audioPlayer.pause();
-        audioPlayer.currentTime = 0; // 再生位置を最初に戻す
-        audioPlayer.play(); // 再生を開始
-        // 5秒後に音を停止
-        timeoutId = setTimeout(() => {
-            if (!audioPlayer.paused) {
-                audioPlayer.pause();
-            }
-        }, 5000);
-    }
+        /**
+         * 再生前の準備カウントダウンを開始
+         */
+        startReadyCountdown() {
+            this.state.currentStatus = 'COUNTDOWN';
+            this.updateUI();
+            let count = SETTINGS.READY_COUNTDOWN_SECONDS;
+            UI.readyCountdownDisplay.textContent = count;
 
-    // カウントダウンを開始する関数
-    function startCountdown() {
-        let remainingTime = timeLimit;
-        timeLimitDisplay.textContent = `残り${remainingTime}秒`;
+            this.clearTimers();
+            this.state.timers.readyCountdownInterval = setInterval(() => {
+                count--;
+                UI.readyCountdownDisplay.textContent = count;
+                if (count <= 0) {
+                    clearInterval(this.state.timers.readyCountdownInterval);
+                    this.startRound();
+                }
+            }, 1000);
+        },
 
-        // 1秒ごとにカウントダウンを更新
-        countdownId = setInterval(() => {
-            remainingTime--;
-            timeLimitDisplay.textContent = `残り${remainingTime}秒`;
+        /**
+         * ラウンドを開始 (音声再生と時間制限カウントダウン)
+         */
+        startRound() {
+            this.state.currentStatus = 'PLAYING';
+            this.updateUI();
 
-            if (remainingTime <= 0) {
-                clearInterval(countdownId); // カウントダウンを停止
-                timeLimitDisplay.textContent = ''; // 残り時間表示をクリア
-                handleTimeout(); // タイムアウト処理を呼び出す
-            }
-    }, 1000);
-}
+            UI.audioPlayer.currentTime = 0;
+            UI.audioPlayer.play();
 
-    // プレイヤー1とプレイヤー2のボタンにクリックイベントを設定
-    player1Button.addEventListener('click', () => handlePlayerAnswer(1));
-    player2Button.addEventListener('click', () => handlePlayerAnswer(2));
+            // 一定時間後に音声を停止
+            this.state.timers.audioTimeout = setTimeout(() => {
+                if (!UI.audioPlayer.paused) {
+                    UI.audioPlayer.pause();
+                }
+            }, SETTINGS.AUDIO_PLAY_DURATION);
 
-    function handlePlayerAnswer(player) {
-        if (isAnswered) return; // 既に回答されていたら無視
-        isAnswered = true; // 回答済みに設定
-        whoAnswered = player; // 回答したプレイヤーを記録
-        audioPlayer.pause(); // 音声を停止
-        choicesContainer.style.display = 'flex'; // 選択肢を表示
-        playerButtonsContainer.style.display = 'none'; // プレイヤーボタンを隠
-    }
+            // 制限時間のカウントダウンを開始
+            let timeLeft = SETTINGS.TIME_LIMIT;
+            UI.timeLimitDisplay.textContent = `残り${timeLeft}秒`;
+            this.state.timers.countdownInterval = setInterval(() => {
+                timeLeft--;
+                UI.timeLimitDisplay.textContent = `残り${timeLeft}秒`;
+                if (timeLeft <= 0) {
+                    this.handleTimeout();
+                }
+            }, 1000);
+        },
 
-    function addScore() {
-        if (whoAnswered === 1) {
-            player1Score += correctScore; // プレイヤー1のスコアを加算
-            player1ScoreDisplay.textContent = `スコア: ${player1Score}`;
-        } else if (whoAnswered === 2) {
-            player2Score += correctScore; // プレイヤー2のスコアを加算
-            player2ScoreDisplay.textContent = `スコア: ${player2Score}`;
-        }
-    }
+        /**
+         * プレイヤーの早押し回答を処理
+         * @param {number} player - プレイヤー番号 (1 or 2)
+         */
+        handlePlayerAnswer(player) {
+            if (this.state.currentStatus !== 'PLAYING') return;
+            this.state.whoAnswered = player;
+            this.state.currentStatus = 'ANSWERING';
+            UI.audioPlayer.pause();
+            this.updateUI();
+        },
+        
+        /**
+         * 選択肢の正誤を判定
+         * @param {number} selectedMusicId - 選択された曲のID
+         */
+        checkAnswer(selectedMusicId) {
+            if (this.state.currentStatus !== 'ANSWERING') return;
+            this.clearTimers();
 
-    function subtractScore() {
-        if (whoAnswered === 1) {
-            player1Score = Math.max(0, player1Score + incorrectScore); // プレイヤー1のスコアを減算し、0未満にならないようにする
-            player1ScoreDisplay.textContent = `スコア: ${player1Score}`;
-        } else if (whoAnswered === 2) {
-            player2Score = Math.max(0, player2Score + incorrectScore); // プレイヤー2のスコアを減算し、0未満にならないようにする
-            player2ScoreDisplay.textContent = `スコア: ${player2Score}`;
-        }
-    }
+            const isCorrect = selectedMusicId === this.state.correctAnswer.music_id;
 
-    // === 2. 回答ボタンの処理 ===
-    answerButtons.forEach(button => {
-        button.addEventListener('click', (event) => {
-            // プレイヤーが選んだ答えのID
-            const selectedMusicId = Number(event.target.dataset.musicId);
-            audioPlayer.pause(); // 音声を一旦停止
-            gameBody.style.display = 'none'; // ゲームエリアを隠す
-            resultFeedback.style.display = 'block';
-            // 正誤判定
-            if (selectedMusicId === correctAnswer.music_id) {
-                // 正解の場合
-                clearInterval(countdownId); // カウントダウンを停止
-                resultFeedback.innerHTML = `🎉正解！<br>「${correctAnswer.title} / ${correctAnswer.composer}」`;
-                addScore(); // スコアを加算
-                nextQuestionButton.style.display = 'block'; // ボタンを表示
-                addPlaylistButton.style.display = 'block'; // お気に入り追加ボタンを表示
-                hintButton.style.display = 'none'; // ヒントボタンを隠す
-                clearTimeout(timeoutId); // タイムアウトをクリア
+            if (isCorrect) {
+                this.updateScore(true);
+                this.showResult(true);
             } else {
-                resultFeedback.textContent = `不正解`;
-                subtractScore(); // スコアを減算
+                this.updateScore(false);
+                UI.resultFeedback.textContent = '不正解！';
+                this.state.currentStatus = 'SHOW_RESULT';
+                this.updateUI();
+
+                // 少し待ってから、もう一度回答のチャンスを与える
                 setTimeout(() => {
-                    // 不正解の場合の処理
-                    isAnswered = false; // 回答状態をリセット
-                    whoAnswered = null; // 回答したプレイヤーをリセット
-                    choicesContainer.style.display = 'none'; // 選択肢を隠す
-                    playerButtonsContainer.style.display = 'flex'; // プレイヤーボタンを表示
-                    gameBody.style.display = 'block'; // ゲームエリアを再表示
-                    resultFeedback.style.display = 'none'; // フィードバックメッセージを隠す
-                    clearTimeout(timeoutId); // タイムアウトをクリア
-                    startAudio(); // 音楽を最初に戻して再生
+                    this.state.whoAnswered = null;
+                    // 音声を途中から再開
+                    this.startRound(); 
                 }, 2000);
             }
-        });
-    });
+        },
 
-    // 時間切れ時の処理
-    function handleTimeout() {
-        clearInterval(countdownId); // カウントダウンを停止
-        audioPlayer.pause(); // 音声を停止
-        resultFeedback.innerHTML = `時間切れ！<br>正解は「${correctAnswer.title} / ${correctAnswer.composer}」でした。`;
-        resultFeedback.style.display = 'block';
-        gameBody.style.display = 'none'; // ゲームエリアを隠す
-        nextQuestionButton.style.display = 'block'; // 次の問題ボタンを表示
-        addPlaylistButton.style.display = 'block'; // お気に入り追加ボタンを表示
-        hintButton.style.display = 'none'; // ヒントボタンを隠す
-    }
+        /**
+         * 時間切れの処理
+         */
+        handleTimeout() {
+            this.clearTimers();
+            this.showResult(false, true); // isCorrect: false, isTimeout: true
+        },
 
-    // === 4. 次の問題ボタンの処理 ===
-    nextQuestionButton.addEventListener('click', () => {
-        if (round < maxRounds) {
-            fetchQuiz(); // 新しい問題を取得
-        } else {
-            feedbackMessage.textContent = '終了';
-            feedbackMessage.style.display = 'block';
-            console.log('スコア送信開始');
-            fetch('/api/submit_scores', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    player1Score: player1Score,
-                    player2Score: player2Score,
-                }),
-            })
-            .then(response => {
-                console.log('レスポンスを受信:', response);
+        /**
+         * 正解/不正解/時間切れの結果を表示
+         * @param {boolean} isCorrect - 正解したか
+         * @param {boolean} isTimeout - 時間切れか
+         */
+        showResult(isCorrect, isTimeout = false) {
+            this.state.currentStatus = 'SHOW_RESULT';
+            this.clearTimers();
+
+            if (isTimeout) {
+                UI.resultFeedback.innerHTML = `時間切れ！<br>正解は「${this.state.correctAnswer.title} / ${this.state.correctAnswer.composer}」でした。`;
+            } else if (isCorrect) {
+                UI.resultFeedback.innerHTML = `🎉正解！<br>「${this.state.correctAnswer.title} / ${this.state.correctAnswer.composer}」`;
+            }
+            // 不正解の場合は checkAnswer 内でメッセージを設定済み
+
+            this.updateUI();
+        },
+
+        /**
+         * スコアを更新
+         * @param {boolean} isCorrect - 正解したか
+         */
+        updateScore(isCorrect) {
+            const scoreChange = isCorrect ? SETTINGS.SCORE.CORRECT : SETTINGS.SCORE.INCORRECT;
+            if (this.state.whoAnswered === 1) {
+                this.state.player1Score = Math.max(0, this.state.player1Score + scoreChange);
+            } else if (this.state.whoAnswered === 2) {
+                this.state.player2Score = Math.max(0, this.state.player2Score + scoreChange);
+            }
+            this.updateScoreDisplay();
+        },
+
+        /**
+         * スコア表示を更新
+         */
+        updateScoreDisplay() {
+            UI.player1ScoreDisplay.textContent = `スコア: ${this.state.player1Score}`;
+            UI.player2ScoreDisplay.textContent = `スコア: ${this.state.player2Score}`;
+        },
+
+        /**
+         * 次のラウンドに進むか、ゲームを終了する
+         */
+        nextRound() {
+            if (this.state.round < SETTINGS.MAX_ROUNDS) {
+                this.fetchQuiz();
+            } else {
+                this.endGame();
+            }
+        },
+
+        /**
+         * ゲームを終了し、スコアをサーバーに送信
+         */
+        async endGame() {
+            this.state.currentStatus = 'ENDED';
+            this.updateUI();
+            try {
+                const response = await fetch(SETTINGS.API_URLS.SUBMIT_SCORES, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        player1Score: this.state.player1Score,
+                        player2Score: this.state.player2Score,
+                    }),
+                });
                 if (response.ok) {
-                    console.log('スコア送信成功');
-                    window.location.href = '/result'; // 結果画面に遷移
+                    window.location.href = SETTINGS.RESULT_PAGE_URL;
                 } else {
-                    console.error('スコア送信失敗:', response.status);
+                    throw new Error('スコアの送信に失敗しました。');
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('通信エラー:', error);
-            });
-        }
-    });
+                this.state.currentStatus = 'ERROR';
+                this.updateUI();
+            }
+        },
 
-    // === 3. ヒントボタンの処理 ===
-    hintButton.addEventListener('click', () => {
-        if (correctAnswer && correctAnswer.hint) {
-            alert(`ヒント: ${correctAnswer.hint}`);
-            hintButton.disabled = true; // ヒントは1回だけ
-        }
-    });
-    // --- 最初にゲームを初期化 ---
-    fetchQuiz();
+        /**
+         * ヒントを表示
+         */
+        showHint() {
+            if (this.state.correctAnswer && this.state.correctAnswer.hint) {
+                alert(`ヒント: ${this.state.correctAnswer.hint}`);
+                UI.hintButton.disabled = true;
+            }
+        },
+        
+        /**
+         * プレイリストに追加（機能のプレースホルダー）
+         */
+        addToPlaylist() {
+            // ここにプレイリスト追加のロジックを実装
+            alert(`「${this.state.correctAnswer.title}」をプレイリストに追加しました。（仮）`);
+        },
+
+        /**
+         * すべてのタイマーをクリア
+         */
+        clearTimers() {
+            Object.values(this.state.timers).forEach(timer => {
+                if (timer) {
+                    clearTimeout(timer);
+                    clearInterval(timer);
+                }
+            });
+        },
+
+        /**
+         * ゲームのステータスに基づいてUIの表示/非表示を更新
+         */
+        updateUI() {
+            const status = this.state.currentStatus;
+
+            // デフォルトですべての主要コンテナを非表示にする
+            const allContainers = [
+                UI.feedbackMessage, UI.resultFeedback, UI.gameBody, UI.playAudioButton,
+                UI.readyCountdownDisplay, UI.playerButtonsContainer, UI.choicesContainer,
+                UI.nextQuestionButton, UI.addPlaylistButton, UI.hintButton, UI.timeLimitDisplay
+            ];
+            allContainers.forEach(el => el.style.display = 'none');
+            
+            // 問題タイトルとスコアは常に表示
+            UI.questionTitle.textContent = `第 ${this.state.round} 問`;
+            this.updateScoreDisplay();
+
+            // ステータスに応じて表示を切り替え
+            switch (status) {
+                case 'LOADING':
+                    UI.feedbackMessage.textContent = '問題を取得中...';
+                    UI.feedbackMessage.style.display = 'block';
+                    break;
+
+                case 'READY_TO_PLAY':
+                    UI.gameBody.style.display = 'block';
+                    UI.playAudioButton.style.display = 'flex';
+                    break;
+
+                case 'COUNTDOWN':
+                    UI.gameBody.style.display = 'block';
+                    UI.readyCountdownDisplay.style.display = 'block';
+                    break;
+
+                case 'PLAYING':
+                    UI.gameBody.style.display = 'block';
+                    UI.playerButtonsContainer.style.display = 'flex';
+                    UI.timeLimitDisplay.style.display = 'block';
+                    UI.hintButton.style.display = 'block';
+                    UI.hintButton.disabled = false;
+                    UI.answerButtons.forEach(b => b.disabled = true);
+                    break;
+
+                case 'ANSWERING':
+                    UI.gameBody.style.display = 'block';
+                    UI.choicesContainer.style.display = 'flex';
+                    UI.timeLimitDisplay.style.display = 'block';
+                    UI.hintButton.style.display = 'block';
+                    UI.answerButtons.forEach(b => b.disabled = false);
+                    break;
+
+                case 'SHOW_RESULT':
+                    UI.resultFeedback.style.display = 'block';
+                    // 不正解で回答権が残っている場合以外は「次へ」ボタンを表示
+                    if (UI.resultFeedback.textContent !== '不正解！') {
+                        UI.nextQuestionButton.style.display = 'block';
+                        UI.addPlaylistButton.style.display = 'block';
+                    }
+                    break;
+
+                case 'ENDED':
+                    UI.feedbackMessage.textContent = 'ゲーム終了！結果を送信中...';
+                    UI.feedbackMessage.style.display = 'block';
+                    break;
+                
+                case 'ERROR':
+                    UI.feedbackMessage.textContent = 'エラーが発生しました。ページを再読み込みしてください。';
+                    UI.feedbackMessage.style.display = 'block';
+                    break;
+            }
+        },
+    };
+
+    // --- ゲーム開始 ---
+    game.init();
 });

@@ -153,6 +153,12 @@ main {
     margin: 0 0 20px 0; /* 下部に余白を追加 */
 }
 
+.player-button-container {
+    display: flex;
+    flex-direction: column; /* ボタンとキーを縦に並べる */
+    align-items: center; /* 中央揃え */
+}
+
 .player-button {
     background-color: white; /* 白色の背景 */
     color: black;              /* 文字色を黒に */
@@ -178,12 +184,25 @@ main {
     display: block;
 }
 
+.key-button {
+    background: #f2f2f2; /* 薄い灰色の背景 */
+    border: 1px solid #d9d9d9; /* やや濃い灰色の枠線 */
+    border-radius: 0.2em; /* 角を少し丸める */
+
+    padding: 0.2em 0.4em 0.1em; /* 上下左右の余白を調整 */
+
+    font-size: 0.88em;  /* 文字サイズを調整（他の文章とバランスを取る） */
+    line-height: 1; /* 行間を調整（親要素の影響を受けないように） */
+    margin: 0 0.2em;  /* 前後の文字との間隔を調整 */
+    transform: translateY(-0.1em);  /* 縦位置を微調整（少し上に移動） */
+    box-shadow: 0.15em 0.15em 0 rgba(0, 0, 0, 0.3); /* 軽い影を追加 */
+}
+
 .feedback-message {
     display: none; /* 初期状態では非表示 */
     margin-top: 20px;
     padding: 10px;
     border-radius: 5px;
-    color: red; /* 文字色 */
 }
 
 .game-controls {
