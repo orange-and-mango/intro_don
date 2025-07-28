@@ -1,8 +1,26 @@
 import sqlite3
 import os
+import csv
 
 # データベースファイル名
 DB_NAME = "database.db"
+
+
+# CSVファイルから曲データを読み込む
+def read_songs_from_csv(file_path):
+    """CSVファイルから曲データを読み込む"""
+    with open(file_path, mode="r", encoding="utf-8") as file:
+        reader = csv.DictReader(file)
+        return [
+            (
+                row["title"],
+                row["composer"],
+                row["audio_file"],
+                row["difficulty"],
+                row["hint"],
+            )
+            for row in reader
+        ]
 
 
 # --- データベースとテーブルを作成 ---
@@ -46,15 +64,7 @@ def insert_data():
 
     # 登録したい楽曲データのリスト
     # (title, composer, audio_file, difficulty, hint) の順
-    songs = [
-        ("2:23 AM", "しゃろう", "audio/0001.mp3", "normal", "時間"),
-        ("10℃", "しゃろう", "audio/0002.mp3", "normal", "３文字"),
-        ("You and Me", "しゃろう", "audio/0003.mp3", "normal", "英語"),
-        ("Cassette Tape Dream", "しゃろう", "audio/0004.mp3", "normal", "英語"),
-        ("極東の羊、テレキャスターと踊る", "しゃろう", "audio/0005.mp3", "normal", "長いタイトル"),
-        ("サンタは中央線でやってくる", "しゃろう", "audio/0006.mp3", "normal", "乗り物"),
-        ("野良猫は宇宙を目指した", "しゃろう", "audio/0007.mp3", "normal", "動物"),
-    ]
+    # songs is now imported from songs_data.py
     conn = None
     try:
         conn = sqlite3.connect(DB_NAME)
@@ -81,5 +91,9 @@ def insert_data():
 
 # --- このスクリプトが直接実行された場合に、関数を呼び出す ---
 if __name__ == "__main__":
+    # CSV からデータを読み込む
+    SONGS_CSV_PATH = "songs_data.csv"
+    songs = read_songs_from_csv(SONGS_CSV_PATH)
+
     create_database()  # データベースとテーブルを作成
     insert_data()  # サンプルデータを挿入

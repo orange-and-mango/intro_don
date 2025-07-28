@@ -52,9 +52,11 @@ def settings():
 DB_NAME = "database.db"
 
 
-@app.route("/api/quiz")
+# ★ フロントエンドからのPOSTリクエストに対応
+@app.route("/api/quiz", methods=["GET", "POST"])
 def api_quiz():
     """クイズの問題（正解1曲、選択肢3曲）をJSONで返すAPI"""
+    conn = None  # 接続変数を初期化
     try:
         # データベースに接続
         conn = sqlite3.connect(DB_NAME)
@@ -62,10 +64,40 @@ def api_quiz():
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # --- 正解の曲を1曲、ランダムに取得 ---
-        # OFFSETを使ってランダムな1行を取得するテクニック
-        cursor.execute("SELECT * FROM music ORDER BY RANDOM() LIMIT 1")
-        correct_song = dict(cursor.fetchone())
+        # --- ★ フロントエンドから送られた除外リストを取得 ---
+        exclude_ids = []
+        if request.method == "POST":
+            data = request.get_json()
+            if data and "exclude" in data:
+                # 安全のため、リスト内の各要素が整数であることを確認
+                exclude_ids = [
+                    int(id) for id in data["exclude"] if isinstance(id, int)
+                ]
+
+        # --- ★ 除外リストを考慮して正解の曲を1曲、ランダムに取得 ---
+        base_query = "SELECT * FROM music"
+        params = []
+
+        # 除外リストがある場合、WHERE句を追加
+        if exclude_ids:
+            # プレースホルダ (?,?,?) を動的に生成
+            placeholders = ",".join(["?"] * len(exclude_ids))
+            sql_where = f"WHERE music_id NOT IN ({placeholders})"
+            params.extend(exclude_ids)
+        else:
+            sql_where = ""
+
+        # 完全なSQLクエリを組み立て
+        sql_query = f"{base_query} {sql_where} ORDER BY RANDOM() LIMIT 1"
+
+        cursor.execute(sql_query, params)
+        correct_song_row = cursor.fetchone()
+
+        # もし除外した結果、曲が取得できなくなったらエラーを返す
+        if correct_song_row is None:
+            return jsonify({"error": "No available songs left."}), 404
+
+        correct_song = dict(correct_song_row)
 
         # --- 不正解の選択肢を3曲取得 ---
         # 正解の曲とはIDが異なるものをランダムに3曲取得
@@ -91,6 +123,9 @@ def api_quiz():
     except sqlite3.Error as e:
         # エラーが発生した場合は、エラーメッセージを返す
         return jsonify({"error": f"Database error: {e}"}), 500
+    except Exception as e:
+        # その他の予期せぬエラー
+        return jsonify({"error": f"An unexpected error occurred: {e}"}), 500
     finally:
         # 接続を閉じる
         if conn:

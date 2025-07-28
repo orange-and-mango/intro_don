@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
             player2Score: 0,
             correctAnswer: null,
             whoAnswered: null, // 1 or 2
+            usedSongIds: [], // 既出の曲IDを記録する配列
             // ゲームの進行状況を管理するステータス
             // 'LOADING', 'READY_TO_PLAY', 'COUNTDOWN', 'PLAYING', 'ANSWERING', 'SHOW_RESULT', 'ENDED'
             currentStatus: 'LOADING',
@@ -62,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 audioTimeout: null,
                 countdownInterval: null,
                 readyCountdownInterval: null,
-                temporaryMessageTimeout: null,
+                temporaryMessageTimeout: null, // 一時メッセージ用のタイマー
             },
         },
 
@@ -153,11 +154,25 @@ document.addEventListener('DOMContentLoaded', () => {
             UI.addPlaylistButton.disabled = false;
 
             try {
-                const response = await fetch(SETTINGS.API_URLS.QUIZ);
+                const response = await fetch(SETTINGS.API_URLS.QUIZ, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        exclude: this.state.usedSongIds
+                    }),
+                });
+
                 if (!response.ok) throw new Error('クイズの取得に失敗しました。');
+                
                 const quizData = await response.json();
 
                 this.state.correctAnswer = quizData.correct_answer;
+                
+                // 新しい正解の曲IDを既出リストに追加
+                this.state.usedSongIds.push(this.state.correctAnswer.music_id);
+
                 UI.audioPlayer.src = `static/${this.state.correctAnswer.audio_file}`;
 
                 quizData.choices.forEach((choice, index) => {
@@ -232,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.state.whoAnswered = player;
             this.state.currentStatus = 'ANSWERING';
             UI.audioPlayer.pause();
-            this.updateUI();
+            this.updateUI(); // ★ UI更新でメッセージを表示
         },
         
         /**
@@ -468,6 +483,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     UI.timeLimitDisplay.style.display = 'block';
                     UI.hintButton.style.display = 'block';
                     UI.answerButtons.forEach(b => b.disabled = false);
+                    // ★ 誰が回答中かを表示
+                    if (this.state.whoAnswered) {
+                        UI.feedbackMessage.textContent = `プレイヤー${this.state.whoAnswered}が回答中...`;
+                        UI.feedbackMessage.style.display = 'block';
+                    }
                     break;
 
                 case 'SHOW_RESULT':
