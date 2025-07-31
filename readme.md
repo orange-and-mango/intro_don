@@ -13,3 +13,7 @@
     ```
 
 3. ブラウザで `http://127.0.0.1:5000` にアクセスしてください。
+
+## 使用音源サイト
+- [DOVA-SYNDROME](https://dova-s.jp/)
+- [効果音ラボ](https://soundeffect-lab.info/)
