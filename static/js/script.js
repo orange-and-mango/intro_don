@@ -279,6 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
          */
         handleTimeout() {
             this.clearTimers();
+            this.playSoundEffect('incorrect'); // ★ 時間切れでも不正解音を鳴らす
             this.showResult(false, true);
         },
 
