@@ -384,10 +384,25 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         
         /**
-         * プレイリストに追加（機能のプレースホルダー）
+         * プレイリストに追加
          */
         addToPlaylist() {
-            this.showTemporaryMessage(`「${this.state.correctAnswer.title}」をプレイリストに追加しました。（仮）`);
+            const songId = this.state.correctAnswer.music_id;
+            const songTitle = this.state.correctAnswer.title;
+
+            // ローカルストレージから現在のプレイリストを取得 (なければ空の配列)
+            let playlist = JSON.parse(localStorage.getItem('musicPlaylist')) || [];
+
+            // 重複チェック
+            if (playlist.includes(songId)) {
+                this.showTemporaryMessage(`「${songTitle}」は既に追加されています。`);
+            } else {
+                // IDを追加して保存
+                playlist.push(songId);
+                localStorage.setItem('musicPlaylist', JSON.stringify(playlist));
+                this.showTemporaryMessage(`「${songTitle}」をプレイリストに追加しました。`);
+            }
+            
             // ボタンを無効化して複数回の追加を防ぐ
             UI.addPlaylistButton.disabled = true;
         },

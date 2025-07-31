@@ -9,8 +9,70 @@
 <body>
 <div class="container">
     <h2>プレイリスト</h2>
-    <p>お気に入りのBGMをここに追加できます。</p>
-    <ul id="playlist"></ul>
+        <div id="playlist-container">
+        <!-- Flaskから渡されたsongsデータがあればループで表示 -->
+        {% if songs %}
+            {% for song in songs %}
+            <div class="playlist-item" data-song-id="{{ song.music_id }}">
+                <p class="song-title">{{ song.title }} / {{ song.composer }}</p>
+                <audio controls src="{{ url_for('static', filename=song.audio_file) }}"></audio>
+                <button class="remove-btn" data-id="{{ song.music_id }}">削除</button>
+            </div>
+            {% endfor %}
+        {% else %}
+            <!-- songsデータがなければ、ステータスメッセージを表示 -->
+            <p id="status-message">プレイリストは空です。</p>
+        {% endif %}
+    </div>
+
+    <!-- ページロード時にローカルストレージのIDをPOSTするための隠しフォーム -->
+    <form id="playlist-form" method="POST" action="{{ url_for('playlist') }}" style="display:none;">
+        <input type="hidden" name="song_ids" id="song-ids-input">
+    </form>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- 処理1: ページ初回読み込み時のデータ取得 ---
+        const playlistItems = document.querySelector('.playlist-item');
+        const statusMessage = document.getElementById('status-message');
+
+        // .playlist-item がない = Flaskからsongsデータが渡されなかった場合
+        if (!playlistItems && statusMessage) {
+            const songIds = JSON.parse(localStorage.getItem('musicPlaylist')) || [];
+            
+            // ローカルストレージにIDがあれば、それをフォームでPOSTしてページを再読み込み
+            if (songIds.length > 0) {
+                statusMessage.textContent = 'プレイリストを読み込み中...';
+                document.getElementById('song-ids-input').value = songIds.join(',');
+                document.getElementById('playlist-form').submit();
+            }
+        }
+
+        // --- 処理2: 削除ボタンの機能 ---
+        document.querySelectorAll('.remove-btn').forEach(button => {
+            button.addEventListener('click', (event) => {
+                const songIdToRemove = Number(event.target.dataset.id);
+                
+                // 1. ローカルストレージから該当IDを削除
+                let playlist = JSON.parse(localStorage.getItem('musicPlaylist')) || [];
+                const updatedPlaylist = playlist.filter(id => id !== songIdToRemove);
+                localStorage.setItem('musicPlaylist', JSON.stringify(updatedPlaylist));
+
+                // 2. 画面から該当するブロックを削除
+                const item = event.target.closest('.playlist-item');
+                if (item) {
+                    item.remove();
+                }
+
+                // 3. もし全曲削除されたらメッセージを表示
+                if (document.querySelectorAll('.playlist-item').length === 0) {
+                    const container = document.getElementById('playlist-container');
+                    container.innerHTML = '<p id="status-message">プレイリストは空です。</p>';
+                }
+            });
+        });
+    });
+    </script>
     <a href="/" class="button secondary">トップへ戻る</a>
     <footer>
         <p>{{ footer_text }}</p>

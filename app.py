@@ -38,9 +38,48 @@ def result():
     )
 
 
-@app.route("/playlist")
+@app.route("/playlist", methods=["GET", "POST"])
 def playlist():
-    return render_template("playlist.html")
+    """
+    ローカルストレージのIDを元にプレイリストページをサーバーサイドでレンダリングする。
+    1. GET: まず空のページを返す。JSがローカルストレージのIDをPOSTする。
+    2. POST: IDリストを受け取り、DBから曲情報を取得してページを再描画する。
+    """
+    songs = []
+    # JSからのPOSTリクエストを処理
+    if request.method == "POST":
+        song_ids_str = request.form.get("song_ids")
+        if song_ids_str:
+            # 文字列をIDのリストに変換
+            song_ids = [int(id) for id in song_ids_str.split(',') if id.isdigit()]
+            
+            if song_ids:
+                conn = None
+                try:
+                    conn = sqlite3.connect(DB_NAME)
+                    conn.row_factory = sqlite3.Row
+                    cursor = conn.cursor()
+
+                    # プレースホルダ(?,?)を動的に生成してSQLインジェクションを防ぐ
+                    placeholders = ",".join(["?"] * len(song_ids))
+                    # ★ audio_fileも取得するようにクエリを修正
+                    query = f"SELECT music_id, title, composer, audio_file FROM music WHERE music_id IN ({placeholders})"
+                    
+                    cursor.execute(query, song_ids)
+                    db_songs = [dict(row) for row in cursor.fetchall()]
+
+                    # ローカルストレージの順序を維持するように並べ替え
+                    songs_dict = {song['music_id']: song for song in db_songs}
+                    songs = [songs_dict[id] for id in song_ids if id in songs_dict]
+
+                except Exception as e:
+                    print(f"Error fetching playlist songs: {e}")
+                finally:
+                    if conn:
+                        conn.close()
+
+    # GETリクエストの場合、またはPOSTでもIDが空の場合は、songsが空のままテンプレートがレンダリングされる
+    return render_template("playlist.html", songs=songs)
 
 
 @app.route("/settings")
@@ -70,9 +109,7 @@ def api_quiz():
             data = request.get_json()
             if data and "exclude" in data:
                 # 安全のため、リスト内の各要素が整数であることを確認
-                exclude_ids = [
-                    int(id) for id in data["exclude"] if isinstance(id, int)
-                ]
+                exclude_ids = [int(id) for id in data["exclude"] if isinstance(id, int)]
 
         # --- ★ 除外リストを考慮して正解の曲を1曲、ランダムに取得 ---
         base_query = "SELECT * FROM music"
@@ -102,11 +139,7 @@ def api_quiz():
         # --- 不正解の選択肢を3曲取得 ---
         # 正解の曲とはIDが異なるものをランダムに3曲取得
         cursor.execute(
-            (
-                "SELECT * FROM music "
-                "WHERE music_id != ? "
-                "ORDER BY RANDOM() LIMIT 3"
-            ),
+            ("SELECT * FROM music " "WHERE music_id != ? " "ORDER BY RANDOM() LIMIT 3"),
             (correct_song["music_id"],),
         )
         wrong_songs = [dict(row) for row in cursor.fetchall()]
