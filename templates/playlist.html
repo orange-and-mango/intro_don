@@ -14,7 +14,8 @@
         {% if songs %}
             {% for song in songs %}
             <div class="playlist-item" data-song-id="{{ song.music_id }}">
-                <p class="song-title">{{ song.title }} / {{ song.composer }}</p>
+                <p class="song-title">{{ song.title }}</p>
+                <p class="song-composer">{{ song.composer }}</p>
                 <audio controls src="{{ url_for('static', filename=song.audio_file) }}"></audio>
                 <button class="remove-btn" data-id="{{ song.music_id }}">削除</button>
             </div>

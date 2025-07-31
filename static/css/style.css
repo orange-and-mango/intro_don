@@ -208,6 +208,202 @@ main {
     cursor: not-allowed;       /* マウスカーソルを禁止に */
 }
 
+#playlist-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* 各曲の間の隙間 */
+    width: 100%;
+    margin-top: 20px; /* タイトルとの間に余白 */
+}
+
+.playlist-item {
+    background-color: #f9f9f9; /* カードに少し背景色をつけます */
+    border: 1px solid #ddd;
+    border-radius: 10px; /* 角を丸くします */
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px; /* カード内の要素の隙間を調整します */
+    text-align: left; /* テキストを左揃えにします */
+}
+
+.song-title {
+    font-weight: bold;
+    font-size: 1.1em;
+    margin: 0;
+}
+
+.song-composer {
+    color: #555; /* 作曲者名の色を少し薄くします */
+    font-size: 0.9em;
+    margin: 0;
+}
+
+/* audioタグのデフォルトスタイルを調整します */
+.playlist-item audio {
+    width: 100%;
+    height: 45px;
+}
+
+/* 削除ボタンのデザインを調整します */
+.remove-btn {
+    background-color: #e74c3c; /* 少し落ち着いた赤色に変更します */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 8px 15px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: bold;
+    align-self: flex-end; /* ボタンを右端に配置します */
+    transition: background-color 0.2s ease-in-out; /* ホバー時のアニメーションを追加します */
+}
+
+.remove-btn:hover {
+    background-color: #c0392b; /* ホバー時にもう少し濃い赤色にします */
+}
+
+.setting-section {
+    background-color: #f9f9f9; /* 背景色をつけ、セクションを明確にします */
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 10px 20px 20px;
+    margin-bottom: 20px; /* セクション間の余白 */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.setting-section h2, .setting-section h3 {
+    margin-top: 10px;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee; /* 見出しの下に区切り線を追加 */
+    font-size: 1.2em;
+    color: #333;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between; /* ラベルとコントロールを両端に配置します */
+    align-items: center; /* 垂直方向で中央揃えにします */
+    padding: 12px 0; /* 各項目の上下に余白を追加 */
+}
+
+/* 項目間に区切り線を追加（最初の子要素以外） */
+.setting-item + .setting-item {
+    border-top: 1px solid #eee;
+}
+
+.setting-item label {
+    font-size: 1em;
+    color: #555;
+    flex-shrink: 0; /* ラベルが縮まないように */
+    margin-right: 15px;
+}
+
+/* --- 音量コントロール --- */
+.volume-control {
+    display: flex;
+    align-items: center;
+    gap: 15px; /* スライダーと数値の間の隙間 */
+}
+
+.volume-value {
+    font-weight: bold;
+    color: #333;
+    min-width: 30px; /* 数値の桁数が変わってもレイアウトが崩れないように */
+    text-align: right;
+}
+
+/* input[type="range"] (スライダー) のスタイル */
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    max-width: 150px; /* スライダーの最大幅 */
+    height: 8px;
+    background: #ddd;
+    border-radius: 5px;
+    outline: none;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+input[type="range"]:hover {
+    opacity: 0.8;
+}
+
+/* スライダーのつまみ (Chrome, Safari, Edge) */
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #4CAF50;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+/* スライダーのつまみ (Firefox) */
+input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #4CAF50;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+/* --- トグルスイッチ --- */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 28px;
+}
+
+/* チェックボックス本体は非表示に */
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* スイッチの土台部分 */
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc; /* オフの時の色 */
+    border-radius: 28px;
+    transition: .4s;
+}
+
+/* スイッチの円部分 */
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    border-radius: 50%;
+    transition: .4s;
+}
+
+/* オンになった時のスタイル */
+input:checked + .slider {
+    background-color: #4CAF50;
+}
+
+input:checked + .slider:before {
+    transform: translateX(22px); /* 円を右にスライド */
+}
+
+
 footer {
     font-size: 0.8em;
     color: gray;
