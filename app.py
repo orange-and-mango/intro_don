@@ -182,7 +182,7 @@ def inject_footer_text():
     """
     全てのテンプレートに共通の変数を渡すためのコンテキストプロセッサ。
     """
-    return {"footer_text": "©2025 琉球大学工学部工学科知能情報コース"}
+    return {"footer_text": "©2025 琉球大学知能情報コース（知能情報基礎演習IIグループ20）"}
 
 
 if __name__ == "__main__":
