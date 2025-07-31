@@ -209,6 +209,8 @@ main {
     margin-top: 20px;
     padding: 10px;
     border-radius: 5px;
+    font-weight: bold;
+    text-decoration: underline; /* 波線の下線を引く */
 }
 
 .game-controls {

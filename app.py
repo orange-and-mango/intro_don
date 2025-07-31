@@ -40,11 +40,6 @@ def result():
 
 @app.route("/playlist", methods=["GET", "POST"])
 def playlist():
-    """
-    ローカルストレージのIDを元にプレイリストページをサーバーサイドでレンダリングする。
-    1. GET: まず空のページを返す。JSがローカルストレージのIDをPOSTする。
-    2. POST: IDリストを受け取り、DBから曲情報を取得してページを再描画する。
-    """
     songs = []
     # JSからのPOSTリクエストを処理
     if request.method == "POST":
@@ -97,7 +92,7 @@ def api_quiz():
     """クイズの問題（正解1曲、選択肢3曲）をJSONで返すAPI"""
     conn = None  # 接続変数を初期化
     try:
-        # データベースに接続
+        # データベースに接続c
         conn = sqlite3.connect(DB_NAME)
         # 辞書型で結果を受け取れるようにする
         conn.row_factory = sqlite3.Row

@@ -8,24 +8,42 @@
 </head>
 <body>
     <div class="container">
-        <h1>設定画面</h1>
-        <div class="settings-group">
-            <label for="bgm-volume">BGM音量:</label>
-            <input type="range" id="bgm-volume" min="0" max="100" value="50">
+        <h2>設定</h2>
+        <div class="setting-section">
+        <h3>イントロ音量</h3>
+        <div class="setting-item">
+            <label for="main-volume">BGM</label>
+            <div class="volume-control">
+                <input type="range" id="main-volume" min="0" max="100" value="50">
+                <span id="main-volume-value" class="volume-value">50</span>
+            </div>
         </div>
-        <div class="settings-group">
-            <label for="se-volume">SE音量:</label>
-            <input type="range" id="se-volume" min="0" max="100" value="50">
+    </div>
+
+    <!-- 効果音設定 -->
+    <div class="setting-section">
+        <h3>効果音 (SE)</h3>
+        <div class="setting-item">
+            <label>オン / オフ</label>
+            <label class="switch">
+                <input type="checkbox" id="se-enabled" checked>
+                <span class="slider"></span>
+            </label>
         </div>
-        <div class="settings-group">
-            <label for="se-toggle">SEオン/オフ:</label>
-            <input type="checkbox" id="se-toggle" checked>
+        <div class="setting-item">
+            <label for="se-volume">音量</label>
+            <div class="volume-control">
+                <input type="range" id="se-volume" min="0" max="100" value="50">
+                <span id="se-volume-value" class="volume-value">50</span>
+            </div>
         </div>
+    </div>
         <a href="/" class="button secondary">トップへ戻る</a>
         <footer>
             <p>{{ footer_text }}</p>
         </footer>
     </div>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/setting.js') }}"></script>
 </body>
 </html>

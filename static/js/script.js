@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
         MAX_ROUNDS: 10,
         TIME_LIMIT: 10,
         AUDIO_PLAY_DURATION: 5000, // 音声が再生される時間 (ミリ秒)
-        READY_COUNTDOWN_SECONDS: 3,
+        SE_INTRO_DELAY: 2000, // 開始音とイントロの間の待機時間 (ミリ秒)
         SCORE: {
             CORRECT: 20,
             INCORRECT: -10,
@@ -55,31 +55,59 @@ document.addEventListener('DOMContentLoaded', () => {
             player2Score: 0,
             correctAnswer: null,
             whoAnswered: null, // 1 or 2
-            usedSongIds: [], // 既出の曲IDを記録する配列
-            // ゲームの進行状況を管理するステータス
-            // 'LOADING', 'READY_TO_PLAY', 'COUNTDOWN', 'PLAYING', 'ANSWERING', 'SHOW_RESULT', 'ENDED'
+            usedSongIds: [],
+            timeLeft: 0, // ★ 残り時間を保持するプロパティを追加
+            settings: {
+                mainVolume: 0.5,
+                seEnabled: true,
+                seVolume: 0.5,
+            },
+            // 'LOADING', 'READY_TO_PLAY', 'PLAYING_SE', 'PLAYING', 'ANSWERING', 'SHOW_RESULT', 'ENDED'
             currentStatus: 'LOADING',
             timers: {
                 audioTimeout: null,
                 countdownInterval: null,
-                readyCountdownInterval: null,
-                temporaryMessageTimeout: null, // 一時メッセージ用のタイマー
+                temporaryMessageTimeout: null,
             },
+        },
+        
+        sePaths: {
+            correct: '/static/audio/SE_Correct.mp3',
+            incorrect: '/static/audio/SE_Incorrect.mp3',
+            answer: '/static/audio/SE_Answer.mp3',
+            question: '/static/audio/SE_Question.mp3',
         },
 
         /**
          * ゲームの初期化
          */
         init() {
+            this.loadSettings();
             this.bindEvents();
             this.fetchQuiz();
+        },
+        
+        /**
+         * ローカルストレージから設定を読み込み、適用する
+         */
+        loadSettings() {
+            const mainVolume = localStorage.getItem('mainVolume') ?? '50';
+            const seEnabled = JSON.parse(localStorage.getItem('seEnabled') ?? 'true');
+            const seVolume = localStorage.getItem('seVolume') ?? '50';
+
+            this.state.settings.mainVolume = parseInt(mainVolume, 10) / 100;
+            this.state.settings.seEnabled = seEnabled;
+            this.state.settings.seVolume = parseInt(seVolume, 10) / 100;
+            
+            UI.audioPlayer.volume = this.state.settings.mainVolume;
         },
 
         /**
          * イベントリスナーをまとめて設定
          */
         bindEvents() {
-            UI.playAudioButton.addEventListener('click', () => this.startReadyCountdown());
+            UI.playAudioButton.addEventListener('click', () => this.startRound());
+            
             UI.player1Button.addEventListener('click', () => this.handlePlayerAnswer(1));
             UI.player2Button.addEventListener('click', () => this.handlePlayerAnswer(2));
             UI.hintButton.addEventListener('click', () => this.showHint());
@@ -97,46 +125,24 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             document.addEventListener('keydown', (event) => {
-                // --- グローバルキー ---
-                // Escapeキーはいつでもゲームを終了
-                if (event.key === 'Escape') {
-                    this.quitGame();
-                    return;
-                }
-
-                // --- ステータス別キー ---
+                if (event.key === 'Escape') { this.quitGame(); return; }
                 switch (this.state.currentStatus) {
                     case 'READY_TO_PLAY':
-                        if (event.code === 'Space') {
-                            event.preventDefault(); // ページのスクロールを防止
-                            UI.playAudioButton.click();
-                        }
+                        if (event.code === 'Space') { event.preventDefault(); UI.playAudioButton.click(); }
                         break;
-
                     case 'PLAYING':
-                        if (event.key.toLowerCase() === SETTINGS.PLAYER_KEYS.PLAYER1) {
-                            UI.player1Button.click();
-                        } else if (event.key.toLowerCase() === SETTINGS.PLAYER_KEYS.PLAYER2) {
-                            UI.player2Button.click();
-                        }
+                        if (event.key.toLowerCase() === SETTINGS.PLAYER_KEYS.PLAYER1) { UI.player1Button.click(); } 
+                        else if (event.key.toLowerCase() === SETTINGS.PLAYER_KEYS.PLAYER2) { UI.player2Button.click(); }
                         break;
-
                     case 'ANSWERING':
                         const keyNumber = parseInt(event.key, 10);
                         if (keyNumber >= 1 && keyNumber <= 4) {
                             const buttonIndex = keyNumber - 1;
-                            if (UI.answerButtons[buttonIndex]) {
-                                event.preventDefault(); // 数字キーのデフォルト動作を防止
-                                UI.answerButtons[buttonIndex].click();
-                            }
+                            if (UI.answerButtons[buttonIndex]) { event.preventDefault(); UI.answerButtons[buttonIndex].click(); }
                         }
                         break;
-                    
                     case 'SHOW_RESULT':
-                         if (event.code === 'Space' && UI.nextQuestionButton.style.display !== 'none') {
-                            event.preventDefault(); // ページのスクロールを防止
-                            UI.nextQuestionButton.click();
-                        }
+                         if (event.code === 'Space' && UI.nextQuestionButton.style.display !== 'none') { event.preventDefault(); UI.nextQuestionButton.click(); }
                         break;
                 }
             });
@@ -149,131 +155,121 @@ document.addEventListener('DOMContentLoaded', () => {
             this.state.currentStatus = 'LOADING';
             this.updateUI();
             this.state.round++;
-
-            // 次のラウンドのためにボタンの状態をリセット
             UI.addPlaylistButton.disabled = false;
-
             try {
                 const response = await fetch(SETTINGS.API_URLS.QUIZ, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        exclude: this.state.usedSongIds
-                    }),
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ exclude: this.state.usedSongIds }),
                 });
-
                 if (!response.ok) throw new Error('クイズの取得に失敗しました。');
-                
                 const quizData = await response.json();
-
                 this.state.correctAnswer = quizData.correct_answer;
-                
-                // 新しい正解の曲IDを既出リストに追加
                 this.state.usedSongIds.push(this.state.correctAnswer.music_id);
-
                 UI.audioPlayer.src = `static/${this.state.correctAnswer.audio_file}`;
-
                 quizData.choices.forEach((choice, index) => {
                     UI.answerButtons[index].textContent = choice.title;
                     UI.answerButtons[index].dataset.musicId = choice.music_id;
                 });
-
                 this.state.currentStatus = 'READY_TO_PLAY';
             } catch (error) {
-                console.error(error);
-                this.state.currentStatus = 'ERROR';
+                console.error(error); this.state.currentStatus = 'ERROR';
             } finally {
                 this.updateUI();
             }
         },
 
         /**
-         * 再生前の準備カウントダウンを開始
+         * ラウンドを開始 (SE再生と「第◯問」表示)
          */
-        startReadyCountdown() {
-            this.state.currentStatus = 'COUNTDOWN';
-            this.updateUI();
-            let count = SETTINGS.READY_COUNTDOWN_SECONDS;
-            UI.readyCountdownDisplay.textContent = count;
+        startRound() {
+            if (this.state.currentStatus !== 'READY_TO_PLAY') return;
 
-            this.clearTimers();
-            this.state.timers.readyCountdownInterval = setInterval(() => {
-                count--;
-                UI.readyCountdownDisplay.textContent = count;
-                if (count <= 0) {
-                    clearInterval(this.state.timers.readyCountdownInterval);
-                    this.startRound();
-                }
-            }, 1000);
+            // ★ ラウンド開始時に残り時間をリセット
+            this.state.timeLeft = SETTINGS.TIME_LIMIT; 
+            
+            this.state.currentStatus = 'PLAYING_SE';
+            this.updateUI(); 
+            
+            this.playSoundEffect('question');
+
+            setTimeout(() => {
+                if (this.state.currentStatus !== 'PLAYING_SE') return;
+                
+                // ★ イントロとタイマーの開始を新しい関数に分離
+                this.startIntroAndTimer();
+
+            }, SETTINGS.SE_INTRO_DELAY);
         },
 
         /**
-         * ラウンドを開始 (音声再生と時間制限カウントダウン)
+         * イントロ再生と時間制限タイマーを開始する
          */
-        startRound() {
+        startIntroAndTimer() {
             this.state.currentStatus = 'PLAYING';
             this.updateUI();
 
             UI.audioPlayer.currentTime = 0;
             UI.audioPlayer.play();
-
-            // 一定時間後に音声を停止
+            
             this.state.timers.audioTimeout = setTimeout(() => {
-                if (!UI.audioPlayer.paused) {
-                    UI.audioPlayer.pause();
-                }
+                if (!UI.audioPlayer.paused) { UI.audioPlayer.pause(); }
             }, SETTINGS.AUDIO_PLAY_DURATION);
-
-            // 制限時間のカウントダウンを開始
-            let timeLeft = SETTINGS.TIME_LIMIT;
+            
+            // ★ stateに保存された残り時間からタイマーを再開
+            let timeLeft = this.state.timeLeft; 
             UI.timeLimitDisplay.textContent = `残り${timeLeft}秒`;
+            this.clearTimers('countdownInterval');
             this.state.timers.countdownInterval = setInterval(() => {
                 timeLeft--;
+                this.state.timeLeft = timeLeft; // ★ 毎秒、残り時間をstateに保存
                 UI.timeLimitDisplay.textContent = `残り${timeLeft}秒`;
-                if (timeLeft <= 0) {
-                    this.handleTimeout();
-                }
+                if (timeLeft <= 0) { this.handleTimeout(); }
             }, 1000);
         },
 
         /**
          * プレイヤーの早押し回答を処理
-         * @param {number} player - プレイヤー番号 (1 or 2)
          */
         handlePlayerAnswer(player) {
             if (this.state.currentStatus !== 'PLAYING') return;
+            
+            // ★ カウントダウンタイマーとイントロ停止タイマーのみを停止
+            this.clearTimers('countdownInterval');
+            this.clearTimers('audioTimeout');
+
+            this.playSoundEffect('answer');
             this.state.whoAnswered = player;
             this.state.currentStatus = 'ANSWERING';
             UI.audioPlayer.pause();
-            this.updateUI(); // ★ UI更新でメッセージを表示
+            this.updateUI();
         },
         
         /**
          * 選択肢の正誤を判定
-         * @param {number} selectedMusicId - 選択された曲のID
          */
         checkAnswer(selectedMusicId) {
             if (this.state.currentStatus !== 'ANSWERING') return;
-            this.clearTimers();
 
             const isCorrect = selectedMusicId === this.state.correctAnswer.music_id;
-
             if (isCorrect) {
+                this.playSoundEffect('correct');
                 this.updateScore(true);
                 this.showResult(true);
             } else {
+                this.playSoundEffect('incorrect');
                 this.updateScore(false);
-                UI.resultFeedback.textContent = '不正解！';
+                
                 this.state.currentStatus = 'SHOW_RESULT';
+                UI.resultFeedback.textContent = '不正解！';
                 this.updateUI();
 
-                // 少し待ってから、もう一度回答のチャンスを与える
                 setTimeout(() => {
-                    this.state.whoAnswered = null;
-                    // 音声を途中から再開
-                    this.startRound(); 
+                    if (this.state.currentStatus === 'SHOW_RESULT') {
+                        this.state.whoAnswered = null;
+                        // ★ イントロとタイマーを残り時間から再開する
+                        this.startIntroAndTimer();
+                    }
                 }, 2000);
             }
         },
@@ -283,31 +279,25 @@ document.addEventListener('DOMContentLoaded', () => {
          */
         handleTimeout() {
             this.clearTimers();
-            this.showResult(false, true); // isCorrect: false, isTimeout: true
+            this.showResult(false, true);
         },
 
         /**
-         * 正解/不正解/時間切れの結果を表示
-         * @param {boolean} isCorrect - 正解したか
-         * @param {boolean} isTimeout - 時間切れか
+         * 結果を表示
          */
         showResult(isCorrect, isTimeout = false) {
             this.state.currentStatus = 'SHOW_RESULT';
             this.clearTimers();
-
             if (isTimeout) {
                 UI.resultFeedback.innerHTML = `時間切れ！<br>正解は「${this.state.correctAnswer.title} / ${this.state.correctAnswer.composer}」でした。`;
             } else if (isCorrect) {
                 UI.resultFeedback.innerHTML = `🎉正解！<br>「${this.state.correctAnswer.title} / ${this.state.correctAnswer.composer}」`;
             }
-            // 不正解の場合は checkAnswer 内でメッセージを設定済み
-
             this.updateUI();
         },
 
         /**
          * スコアを更新
-         * @param {boolean} isCorrect - 正解したか
          */
         updateScore(isCorrect) {
             const scoreChange = isCorrect ? SETTINGS.SCORE.CORRECT : SETTINGS.SCORE.INCORRECT;
@@ -319,27 +309,21 @@ document.addEventListener('DOMContentLoaded', () => {
             this.updateScoreDisplay();
         },
 
-        /**
-         * スコア表示を更新
-         */
         updateScoreDisplay() {
             UI.player1ScoreDisplay.textContent = `スコア: ${this.state.player1Score}`;
             UI.player2ScoreDisplay.textContent = `スコア: ${this.state.player2Score}`;
         },
 
         /**
-         * 次のラウンドに進むか、ゲームを終了する
+         * 次のラウンドへ
          */
         nextRound() {
-            if (this.state.round < SETTINGS.MAX_ROUNDS) {
-                this.fetchQuiz();
-            } else {
-                this.endGame();
-            }
+            if (this.state.round < SETTINGS.MAX_ROUNDS) { this.fetchQuiz(); } 
+            else { this.endGame(); }
         },
 
         /**
-         * ゲームを終了し、スコアをサーバーに送信
+         * ゲーム終了処理
          */
         async endGame() {
             this.state.currentStatus = 'ENDED';
@@ -348,185 +332,135 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch(SETTINGS.API_URLS.SUBMIT_SCORES, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        player1Score: this.state.player1Score,
-                        player2Score: this.state.player2Score,
-                    }),
+                    body: JSON.stringify({ player1Score: this.state.player1Score, player2Score: this.state.player2Score }),
                 });
-                if (response.ok) {
-                    window.location.href = SETTINGS.RESULT_PAGE_URL;
-                } else {
-                    throw new Error('スコアの送信に失敗しました。');
-                }
+                if (response.ok) { window.location.href = SETTINGS.RESULT_PAGE_URL; } 
+                else { throw new Error('スコアの送信に失敗しました。'); }
             } catch (error) {
-                console.error('通信エラー:', error);
-                this.state.currentStatus = 'ERROR';
-                this.updateUI();
+                console.error('通信エラー:', error); this.state.currentStatus = 'ERROR'; this.updateUI();
             }
         },
 
-        /**
-         * ゲームを中断して指定されたURLに移動
-         */
-        quitGame() {
-            // 確認ダイアログは環境によって動作しないことがあるため、直接移動します
-            window.location.href = SETTINGS.QUIT_URL;
-        },
-
-        /**
-         * ヒントを表示
-         */
+        quitGame() { window.location.href = SETTINGS.QUIT_URL; },
         showHint() {
             if (this.state.correctAnswer && this.state.correctAnswer.hint) {
                 this.showTemporaryMessage(`ヒント: ${this.state.correctAnswer.hint}`);
                 UI.hintButton.disabled = true;
             }
         },
-        
-        /**
-         * プレイリストに追加
-         */
         addToPlaylist() {
             const songId = this.state.correctAnswer.music_id;
             const songTitle = this.state.correctAnswer.title;
-
-            // ローカルストレージから現在のプレイリストを取得 (なければ空の配列)
             let playlist = JSON.parse(localStorage.getItem('musicPlaylist')) || [];
-
-            // 重複チェック
             if (playlist.includes(songId)) {
                 this.showTemporaryMessage(`「${songTitle}」は既に追加されています。`);
             } else {
-                // IDを追加して保存
                 playlist.push(songId);
                 localStorage.setItem('musicPlaylist', JSON.stringify(playlist));
                 this.showTemporaryMessage(`「${songTitle}」をプレイリストに追加しました。`);
             }
-            
-            // ボタンを無効化して複数回の追加を防ぐ
             UI.addPlaylistButton.disabled = true;
         },
 
         /**
-         * 一時的なメッセージをfeedback-message要素に表示
-         * @param {string} message - 表示するメッセージ
-         * @param {number} duration - 表示時間 (ミリ秒)
+         * 一時的なメッセージを表示
          */
         showTemporaryMessage(message, duration = 3000) {
             const messageEl = UI.feedbackMessage;
-
-            // 既存のメッセージタイマーがあればクリア
-            if (this.state.timers.temporaryMessageTimeout) {
-                clearTimeout(this.state.timers.temporaryMessageTimeout);
-            }
-
-            // メッセージを設定して表示
+            if (this.state.timers.temporaryMessageTimeout) { clearTimeout(this.state.timers.temporaryMessageTimeout); }
             messageEl.textContent = message;
             messageEl.style.display = 'block';
-
-            // 指定時間後にメッセージを消して非表示にするタイマーを設定
             this.state.timers.temporaryMessageTimeout = setTimeout(() => {
-                // メッセージが上書きされていない場合のみクリア
-                if (messageEl.textContent === message) {
-                    messageEl.textContent = '';
-                    messageEl.style.display = 'none';
-                }
+                if (messageEl.textContent === message) { messageEl.textContent = ''; messageEl.style.display = 'none'; }
                 this.state.timers.temporaryMessageTimeout = null;
             }, duration);
         },
 
         /**
-         * すべてのタイマーをクリアし、IDをリセット
+         * 効果音を再生する（より安全な方法）
          */
-        clearTimers() {
-            Object.keys(this.state.timers).forEach(key => {
-                if (this.state.timers[key]) {
-                    clearTimeout(this.state.timers[key]);
-                    clearInterval(this.state.timers[key]);
-                    this.state.timers[key] = null;
+        playSoundEffect(type) {
+            if (!this.state.settings.seEnabled) return;
+            const path = this.sePaths[type];
+            if (path) {
+                const audio = new Audio(path);
+                audio.volume = this.state.settings.seVolume;
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.error(`Error playing sound '${type}':`, error);
+                    });
                 }
-            });
+            }
         },
 
-        /**
-         * ゲームのステータスに基づいてUIの表示/非表示を更新
-         */
+        clearTimers(specificTimer = null) {
+            if (specificTimer) {
+                if (this.state.timers[specificTimer]) {
+                    clearInterval(this.state.timers[specificTimer]);
+                    clearTimeout(this.state.timers[specificTimer]);
+                    this.state.timers[specificTimer] = null;
+                }
+            } else {
+                Object.keys(this.state.timers).forEach(key => {
+                    if (this.state.timers[key]) {
+                        clearInterval(this.state.timers[key]);
+                        clearTimeout(this.state.timers[key]);
+                        this.state.timers[key] = null;
+                    }
+                });
+            }
+        },
+
         updateUI() {
             const status = this.state.currentStatus;
+            const allContainers = [ UI.feedbackMessage, UI.resultFeedback, UI.gameBody, UI.playAudioButton, UI.playerButtonsContainer, UI.choicesContainer, UI.nextQuestionButton, UI.addPlaylistButton, UI.hintButton, UI.timeLimitDisplay, UI.readyCountdownDisplay ];
+            allContainers.forEach(el => { if(el) el.style.display = 'none' });
 
-            // デフォルトですべての主要コンテナを非表示にする
-            const allContainers = [
-                UI.feedbackMessage, UI.resultFeedback, UI.gameBody, UI.playAudioButton,
-                UI.readyCountdownDisplay, UI.playerButtonsContainer, UI.choicesContainer,
-                UI.nextQuestionButton, UI.addPlaylistButton, UI.hintButton, UI.timeLimitDisplay
-            ];
-            allContainers.forEach(el => el.style.display = 'none');
-            
-            // 問題タイトルとスコアは常に表示
             UI.questionTitle.textContent = `第 ${this.state.round} 問`;
             this.updateScoreDisplay();
-
-            // ステータスに応じて表示を切り替え
             switch (status) {
-                case 'LOADING':
-                    UI.feedbackMessage.textContent = '問題を取得中...';
-                    UI.feedbackMessage.style.display = 'block';
-                    break;
-
-                case 'READY_TO_PLAY':
+                case 'LOADING': UI.feedbackMessage.textContent = '問題を取得中...'; UI.feedbackMessage.style.display = 'block'; break;
+                case 'READY_TO_PLAY': UI.gameBody.style.display = 'block'; UI.playAudioButton.style.display = 'flex'; break;
+                
+                case 'PLAYING_SE':
                     UI.gameBody.style.display = 'block';
-                    UI.playAudioButton.style.display = 'flex';
+                    if (UI.readyCountdownDisplay) {
+                        UI.readyCountdownDisplay.textContent = `第 ${this.state.round} 問`;
+                        UI.readyCountdownDisplay.style.display = 'flex';
+                        UI.readyCountdownDisplay.style.alignItems = 'center';
+                        UI.readyCountdownDisplay.style.justifyContent = 'center';
+                        UI.readyCountdownDisplay.style.fontSize = '5rem';
+                        UI.readyCountdownDisplay.style.fontWeight = 'bold';
+                    }
                     break;
-
-                case 'COUNTDOWN':
-                    UI.gameBody.style.display = 'block';
-                    UI.readyCountdownDisplay.style.display = 'block';
-                    break;
-
+                
                 case 'PLAYING':
-                    UI.gameBody.style.display = 'block';
-                    UI.playerButtonsContainer.style.display = 'flex';
-                    UI.timeLimitDisplay.style.display = 'block';
-                    UI.hintButton.style.display = 'block';
-                    UI.hintButton.disabled = false;
-                    UI.answerButtons.forEach(b => b.disabled = true);
+                    UI.gameBody.style.display = 'block'; UI.playerButtonsContainer.style.display = 'flex'; UI.timeLimitDisplay.style.display = 'block'; UI.hintButton.style.display = 'block';
+                    UI.hintButton.disabled = false; UI.answerButtons.forEach(b => b.disabled = true);
                     break;
-
                 case 'ANSWERING':
-                    UI.gameBody.style.display = 'block';
-                    UI.choicesContainer.style.display = 'flex';
+                    UI.gameBody.style.display = 'block'; UI.choicesContainer.style.display = 'flex'; 
+                    // ★ 解答中もタイマーを表示
                     UI.timeLimitDisplay.style.display = 'block';
                     UI.hintButton.style.display = 'block';
                     UI.answerButtons.forEach(b => b.disabled = false);
-                    // ★ 誰が回答中かを表示
-                    if (this.state.whoAnswered) {
-                        UI.feedbackMessage.textContent = `プレイヤー${this.state.whoAnswered}が回答中...`;
-                        UI.feedbackMessage.style.display = 'block';
-                    }
+                    if (this.state.whoAnswered) { UI.feedbackMessage.textContent = `プレイヤー${this.state.whoAnswered}が回答中...`; UI.feedbackMessage.style.display = 'block'; }
                     break;
-
                 case 'SHOW_RESULT':
                     UI.resultFeedback.style.display = 'block';
-                    // 不正解で回答権が残っている場合以外は「次へ」ボタンを表示
-                    if (UI.resultFeedback.textContent !== '不正解！') {
+                    // 「不正解！」というメッセージだけの時は「次へ」ボタンを表示しない
+                    if (UI.resultFeedback.innerHTML.includes('<br>')) {
+                        // 正解 or 時間切れの時（<br>タグが含まれる）だけボタンを表示
                         UI.nextQuestionButton.style.display = 'block';
                         UI.addPlaylistButton.style.display = 'block';
                     }
                     break;
-
-                case 'ENDED':
-                    UI.feedbackMessage.textContent = 'ゲーム終了！結果を送信中...';
-                    UI.feedbackMessage.style.display = 'block';
-                    break;
-                
-                case 'ERROR':
-                    UI.feedbackMessage.textContent = 'エラーが発生しました。ページを再読み込みしてください。';
-                    UI.feedbackMessage.style.display = 'block';
-                    break;
+                case 'ENDED': UI.feedbackMessage.textContent = 'ゲーム終了！結果を送信中...'; UI.feedbackMessage.style.display = 'block'; break;
+                case 'ERROR': UI.feedbackMessage.textContent = 'エラーが発生しました。ページを再読み込みしてください。'; UI.feedbackMessage.style.display = 'block'; break;
             }
         },
     };
 
-    // --- ゲーム開始 ---
     game.init();
 });
